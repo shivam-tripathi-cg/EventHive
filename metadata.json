@@ -1,0 +1,6 @@
+{
+  "name": "EventHive — Swaminarayan University",
+  "description": "The official cultural and academic event gateway for Swaminarayan University. Discover symposiums, hackathons, sports tournaments, and galas with digital QR entry passes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
