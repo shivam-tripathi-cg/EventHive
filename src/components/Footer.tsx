@@ -156,7 +156,11 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
 
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-[#62626e] gap-4">
-          <p>© 2025 Swaminarayan University (Kalol). All rights reserved.</p>
+          <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-3 text-center sm:text-left">
+            <p>© {new Date().getFullYear()} <span className="font-semibold text-[#111116]">RenderX Limited</span>. All rights reserved.</p>
+            <span className="hidden sm:inline text-[#d4af37]">•</span>
+            <p>Engineered & Managed by <strong className="text-[#b8860b]">RenderX Limited</strong></p>
+          </div>
           <div className="flex items-center gap-6">
             <a href="#privacy" className="hover:text-[#111116] transition-colors">Privacy Policy</a>
             <a href="#terms" className="hover:text-[#111116] transition-colors">Terms of Service</a>

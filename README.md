@@ -138,3 +138,12 @@ Browser me `http://localhost:3000` open karein. Production build test karne ke l
 npm run build
 npm run preview
 ```
+
+---
+
+## 🏢 Credits & Organization
+
+- **Owner & Developer**: **RenderX Limited**
+- **Architecture & Engineering**: Designed and maintained by **RenderX Limited**
+- **License**: © 2025 RenderX Limited. All rights reserved.
+
