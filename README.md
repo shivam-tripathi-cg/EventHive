@@ -51,7 +51,7 @@ EventHive is a modern, responsive campus event gateway and ticketing portal buil
 
 ---
 
-## 🚀 Steps to Push to GitHub & Host on Vercel (स्टेप-बाय-स्टेप गाइड)
+## 🚀 Steps to Push to GitHub & Host on Vercel 
 
 Aapne apna GitHub repo pehle se bana rakha hai. Ab is project ko apne GitHub repository me push karke **Vercel** par free me live host karne ke liye niche diye gaye steps follow karein:
 
