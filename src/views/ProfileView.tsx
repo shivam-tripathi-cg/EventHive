@@ -1,14 +1,16 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   User, Mail, Phone, BookOpen, Award, Camera, Check, 
-  Upload, ShieldCheck, ArrowLeft, RefreshCw, Calendar, Sparkles, AlertCircle 
+  Upload, ShieldCheck, ArrowLeft, RefreshCw, Calendar, Sparkles, AlertCircle,
+  Activity, Ticket, Bookmark, Eye, MessageSquare, LogIn, Clock
 } from 'lucide-react';
 import { UserProfile, AVAILABLE_COURSES } from '../data/eventsData';
+import { DatabaseService, UserActivityLog } from '../data/dbStore';
 
 interface ProfileViewProps {
   userProfile: UserProfile;
   onUpdateProfile: (updated: UserProfile) => void;
-  onNavigate: (view: 'home' | 'explore' | 'details' | 'passes' | 'profile' | 'wishlist') => void;
+  onNavigate: (view: 'home' | 'explore' | 'details' | 'passes' | 'profile' | 'wishlist' | 'admin') => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
@@ -16,6 +18,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onUpdateProfile,
   onNavigate,
 }) => {
+  const [profileTab, setProfileTab] = useState<'profile' | 'activity'>('profile');
   const [name, setName] = useState(userProfile.name);
   const [age, setAge] = useState(userProfile.age);
   const [gender, setGender] = useState(userProfile.gender);
@@ -25,25 +28,55 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [email, setEmail] = useState(userProfile.email);
   const [avatar, setAvatar] = useState(userProfile.avatar);
   const [savedToast, setSavedToast] = useState(false);
+  const [activityLogs, setActivityLogs] = useState<UserActivityLog[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const logs = DatabaseService.getActivityLogs(userProfile.rollNumber);
+    setActivityLogs(logs);
+
+    const handleUpdate = () => {
+      setActivityLogs(DatabaseService.getActivityLogs(userProfile.rollNumber));
+    };
+    window.addEventListener('eventhive_activity_updated', handleUpdate);
+    return () => window.removeEventListener('eventhive_activity_updated', handleUpdate);
+  }, [userProfile.rollNumber]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setAvatar(reader.result as string);
+        const photoUrl = reader.result as string;
+        setAvatar(photoUrl);
+
+        // Immediate persist and log activity
+        const updated: UserProfile = {
+          ...userProfile,
+          avatar: photoUrl,
+        };
+        onUpdateProfile(updated);
+        DatabaseService.logActivity({
+          userId: userProfile.rollNumber,
+          type: 'profile_updated',
+          title: 'Profile Photo Uploaded',
+          description: 'Uploaded and linked new scholar photo to digital gate pass.',
+          timestamp: 'Just now',
+        });
+        setSavedToast(true);
+        setTimeout(() => setSavedToast(false), 3000);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleAvatarPreset = (presetUrl: string) => {
-    setAvatar(presetUrl);
-  };
-
   const handleRemovePhoto = () => {
     setAvatar('');
+    const updated: UserProfile = {
+      ...userProfile,
+      avatar: '',
+    };
+    onUpdateProfile(updated);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -60,6 +93,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       avatar,
     };
     onUpdateProfile(updated);
+
+    DatabaseService.logActivity({
+      userId: rollNumber,
+      type: 'profile_updated',
+      title: 'Profile Details Saved',
+      description: `Updated student record: ${name} (${rollNumber}) - ${course}.`,
+      timestamp: 'Just now',
+    });
+
     setSavedToast(true);
     setTimeout(() => setSavedToast(false), 3500);
   };
@@ -74,6 +116,26 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       .toUpperCase();
   };
 
+  const getActivityIcon = (type: UserActivityLog['type']) => {
+    switch (type) {
+      case 'pass_claimed':
+      case 'payment_completed':
+        return <Ticket className="w-4 h-4 text-[#b8860b]" />;
+      case 'wishlist_add':
+      case 'wishlist_remove':
+        return <Bookmark className="w-4 h-4 text-rose-500" />;
+      case 'view_event':
+        return <Eye className="w-4 h-4 text-sky-500" />;
+      case 'feedback_submitted':
+        return <MessageSquare className="w-4 h-4 text-purple-500" />;
+      case 'login':
+      case 'logout':
+        return <LogIn className="w-4 h-4 text-emerald-500" />;
+      default:
+        return <Activity className="w-4 h-4 text-amber-500" />;
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#fbfbf9] text-[#111116] py-10 px-4 sm:px-6 lg:px-8">
       {/* Toast Notification */}
@@ -84,12 +146,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
           <div>
             <div className="font-bold text-white">Profile Updated Successfully!</div>
-            <div className="text-[#a0a0ab] text-[11px]">All your 3 event passes now reflect your updated name & ID.</div>
+            <div className="text-[#a0a0ab] text-[11px]">Photo and credentials saved into permanent student registry.</div>
           </div>
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto space-y-6">
         {/* Navigation Breadcrumb / Top Bar */}
         <div className="flex items-center justify-between">
           <button
@@ -112,286 +174,268 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             Scholar Profile <span className="font-serif italic text-[#b8860b]">& University ID</span>
           </h1>
           <p className="text-xs sm:text-sm text-[#62626e] mt-1 max-w-2xl">
-            Update your student credentials, enrolled academic course, contact details, and photo. Changes automatically update your gate passes and event registration badges.
+            Update your student credentials, enrolled academic course, uploaded photo, and review your persistent activity history on campus.
           </p>
+
+          {/* Sub Navigation Tabs */}
+          <div className="flex items-center gap-2 mt-4 pt-2">
+            <button
+              onClick={() => setProfileTab('profile')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                profileTab === 'profile'
+                  ? 'bg-[#111116] text-white shadow-sm'
+                  : 'bg-white border border-[#e8e5dc] text-[#62626e] hover:bg-[#f4f3ef]'
+              }`}
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Identity & Information</span>
+            </button>
+
+            <button
+              onClick={() => setProfileTab('activity')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                profileTab === 'activity'
+                  ? 'bg-[#111116] text-white shadow-sm'
+                  : 'bg-white border border-[#e8e5dc] text-[#62626e] hover:bg-[#f4f3ef]'
+              }`}
+            >
+              <Activity className="w-3.5 h-3.5 text-[#b8860b]" />
+              <span>Activity Timeline (Saved History)</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold">
+                {activityLogs.length}
+              </span>
+            </button>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Card 1: Profile Photo & Quick Preview */}
-          <div className="bg-white border border-[#e8e5dc] rounded-3xl p-6 sm:p-8 shadow-card-elevated hover:shadow-card-3d transition-all">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-[#b8860b] mb-4 flex items-center gap-2">
-              <Camera className="w-4 h-4" />
-              Profile Photo & Digital Avatar
-            </h2>
+        {/* ===================== TAB 1: PROFILE EDIT FORM ===================== */}
+        {profileTab === 'profile' && (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Card 1: Profile Photo Upload */}
+            <div className="bg-white border border-[#e8e5dc] rounded-3xl p-6 sm:p-8 shadow-sm">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-[#b8860b] mb-4 flex items-center gap-2">
+                <Camera className="w-4 h-4" />
+                Profile Photo & Digital Avatar
+              </h2>
 
-            <div className="flex flex-col sm:flex-row items-center gap-6">
-              {/* Avatar Preview */}
-              <div className="relative group shrink-0">
-                <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl overflow-hidden border-2 border-[#d4af37] bg-gradient-to-br from-[#fed65b]/40 to-[#d4af37]/20 flex items-center justify-center shadow-lg">
-                  {avatar ? (
-                    <img 
-                      src={avatar} 
-                      alt="Student Profile" 
-                      className="w-full h-full object-cover" 
-                    />
-                  ) : (
-                    <span className="font-serif text-3xl sm:text-4xl font-bold text-[#745c00]">
-                      {getInitials(name || 'SU')}
-                    </span>
-                  )}
-                </div>
+              <div className="flex flex-col sm:flex-row items-center gap-6">
+                {/* Avatar Preview */}
+                <div className="relative group shrink-0">
+                  <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl overflow-hidden border-2 border-[#d4af37] bg-gradient-to-br from-[#fed65b]/40 to-[#d4af37]/20 flex items-center justify-center shadow-md">
+                    {avatar ? (
+                      <img 
+                        src={avatar} 
+                        alt="Student Profile" 
+                        className="w-full h-full object-cover" 
+                      />
+                    ) : (
+                      <span className="font-serif text-3xl sm:text-4xl font-bold text-[#745c00]">
+                        {getInitials(name || 'SU')}
+                      </span>
+                    )}
+                  </div>
 
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-2 right-2 p-2 bg-[#111116] text-[#d4af37] rounded-full shadow-lg hover:scale-110 transition-transform"
-                  title="Upload picture"
-                >
-                  <Camera className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Upload Controls & Presets */}
-              <div className="space-y-3 flex-1 text-center sm:text-left">
-                <div>
-                  <h3 className="text-base font-bold text-[#111116]">{name || 'Dev Patel'}</h3>
-                  <p className="text-xs text-[#62626e]">{course}</p>
-                  <span className="inline-block mt-1 text-[11px] font-mono px-2 py-0.5 rounded-md bg-[#f4f3ef] text-[#745c00] font-semibold">
-                    GR No: {rollNumber}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-3.5 py-1.5 rounded-xl border border-[#e8e5dc] bg-[#fbfbf9] hover:border-[#b8860b] text-xs font-semibold text-[#111116] flex items-center gap-1.5 transition-colors shadow-sm"
+                    className="absolute bottom-2 right-2 p-2 bg-[#111116] text-[#fed65b] rounded-full shadow-lg hover:scale-110 transition-transform"
+                    title="Upload picture"
                   >
-                    <Upload className="w-3.5 h-3.5 text-[#b8860b]" />
-                    Upload from Device
+                    <Camera className="w-4 h-4" />
                   </button>
-
-                  {avatar && (
-                    <button
-                      type="button"
-                      onClick={handleRemovePhoto}
-                      className="px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
-                    >
-                      Remove Photo
-                    </button>
-                  )}
                 </div>
 
-                {/* Quick Presets */}
-                <div className="pt-2">
-                  <div className="text-[10px] uppercase font-bold text-[#888894] tracking-wider mb-1.5">
-                    Or select campus role avatar style:
+                {/* Upload Controls */}
+                <div className="space-y-3 flex-1 text-center sm:text-left">
+                  <div>
+                    <h3 className="text-base font-bold text-[#111116]">{name || 'Shivam Tripathi'}</h3>
+                    <p className="text-xs text-[#62626e]">{course}</p>
+                    <span className="inline-block mt-1 text-[11px] font-mono px-2 py-0.5 rounded-md bg-[#f4f3ef] text-[#745c00] font-semibold">
+                      Enrollment No: {rollNumber}
+                    </span>
                   </div>
-                  <div className="flex items-center justify-center sm:justify-start gap-2">
-                    {[
-                      { label: 'Scholar', bg: 'bg-[#fed65b] text-[#745c00]' },
-                      { label: 'Medical', bg: 'bg-emerald-600 text-white' },
-                      { label: 'Tech CSE', bg: 'bg-indigo-600 text-white' },
-                      { label: 'Royal Gold', bg: 'bg-amber-600 text-white' },
-                    ].map((preset, idx) => (
+
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-4 py-2 rounded-xl bg-gold-gradient text-white text-xs font-bold uppercase tracking-wider shadow-sm hover:opacity-95 flex items-center gap-1.5"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      Upload New Photo
+                    </button>
+                    {avatar && (
                       <button
-                        key={idx}
                         type="button"
-                        onClick={() => setAvatar('')}
-                        className={`text-[10px] font-bold px-2.5 py-1 rounded-lg ${preset.bg} opacity-90 hover:opacity-100 transition-opacity`}
+                        onClick={handleRemovePhoto}
+                        className="px-3 py-2 rounded-xl border border-[#e8e5dc] text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
                       >
-                        {preset.label}
+                        Remove Photo
                       </button>
-                    ))}
+                    )}
                   </div>
+                  <p className="text-[11px] text-[#888894]">
+                    Photo is dynamically embossed on all your digital QR event entry passes.
+                  </p>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Card 2: Academic & Personal Information */}
-          <div className="bg-white border border-[#e8e5dc] rounded-3xl p-6 sm:p-8 shadow-card-elevated hover:shadow-card-3d transition-all space-y-6">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-[#b8860b] flex items-center gap-2">
-              <BookOpen className="w-4 h-4" />
-              Academic Credentials & Personal Details
-            </h2>
+            {/* Card 2: Student Academic Information */}
+            <div className="bg-white border border-[#e8e5dc] rounded-3xl p-6 sm:p-8 shadow-sm space-y-4">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-[#b8860b] flex items-center gap-2">
+                <BookOpen className="w-4 h-4" />
+                Academic & Contact Information
+              </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {/* Full Name */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-[#62626e]">
-                  Full Name (As printed on Pass) *
-                </label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-[#888894] absolute left-3.5 top-3" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-[#111116] mb-1">
+                    Full Legal Name
+                  </label>
                   <input
                     type="text"
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Enter student full name"
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-[#e8e5dc] bg-[#fbfbf9] text-xs font-semibold text-[#111116] focus:outline-none focus:border-[#b8860b] focus:ring-2 focus:ring-[#d4af37]/20"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-[#e8e5dc] rounded-xl outline-none focus:border-[#b8860b]"
                   />
                 </div>
-              </div>
 
-              {/* GR Number / Roll Number */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-[#62626e]">
-                  GR Number / Student ID *
-                </label>
-                <div className="relative">
-                  <ShieldCheck className="w-4 h-4 text-[#888894] absolute left-3.5 top-3" />
+                <div>
+                  <label className="block text-xs font-semibold text-[#111116] mb-1">
+                    University Roll / GR Number
+                  </label>
                   <input
                     type="text"
                     required
                     value={rollNumber}
                     onChange={(e) => setRollNumber(e.target.value)}
-                    placeholder="e.g. SU202204192"
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-[#e8e5dc] bg-[#fbfbf9] text-xs font-mono font-semibold text-[#111116] focus:outline-none focus:border-[#b8860b] focus:ring-2 focus:ring-[#d4af37]/20"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-[#e8e5dc] rounded-xl outline-none focus:border-[#b8860b] font-mono"
                   />
                 </div>
-              </div>
 
-              {/* Age */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-[#62626e]">
-                  Age (Years) *
-                </label>
-                <div className="relative">
-                  <Calendar className="w-4 h-4 text-[#888894] absolute left-3.5 top-3" />
-                  <input
-                    type="number"
-                    min={16}
-                    max={65}
-                    required
-                    value={age}
-                    onChange={(e) => setAge(Number(e.target.value))}
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-[#e8e5dc] bg-[#fbfbf9] text-xs font-semibold text-[#111116] focus:outline-none focus:border-[#b8860b] focus:ring-2 focus:ring-[#d4af37]/20"
-                  />
-                </div>
-              </div>
-
-              {/* Gender */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-[#62626e]">
-                  Gender *
-                </label>
-                <select
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value as any)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#e8e5dc] bg-[#fbfbf9] text-xs font-semibold text-[#111116] focus:outline-none focus:border-[#b8860b] focus:ring-2 focus:ring-[#d4af37]/20"
-                >
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                  <option value="Prefer not to say">Prefer not to say</option>
-                </select>
-              </div>
-
-              {/* Course Pursued (Dropdown with MBBS, BDS, CSE, Ayurvedic, Homeopathic, etc.) */}
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-[#62626e] flex items-center justify-between">
-                  <span>Enrolled Academic Course *</span>
-                  <span className="text-[10px] text-[#b8860b] font-normal">Printed on Event Pass & Certificate</span>
-                </label>
-                <div className="relative">
-                  <BookOpen className="w-4 h-4 text-[#888894] absolute left-3.5 top-3" />
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-[#111116] mb-1">
+                    Enrolled Academic Course / Discipline
+                  </label>
                   <select
                     value={course}
                     onChange={(e) => setCourse(e.target.value)}
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-[#e8e5dc] bg-[#fbfbf9] text-xs font-semibold text-[#111116] focus:outline-none focus:border-[#b8860b] focus:ring-2 focus:ring-[#d4af37]/20 cursor-pointer"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-[#e8e5dc] rounded-xl outline-none focus:border-[#b8860b] bg-white"
                   >
-                    {AVAILABLE_COURSES.map((crs) => (
-                      <option key={crs} value={crs}>
-                        {crs}
-                      </option>
+                    {AVAILABLE_COURSES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
                 </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Card 3: Contact & Communication */}
-          <div className="bg-white border border-[#e8e5dc] rounded-3xl p-6 sm:p-8 shadow-card-elevated hover:shadow-card-3d transition-all space-y-6">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-[#b8860b] flex items-center gap-2">
-              <Mail className="w-4 h-4" />
-              Contact Information & Gate Alerts
-            </h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {/* Contact Number */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-[#62626e]">
-                  Contact Mobile Number *
-                </label>
-                <div className="relative">
-                  <Phone className="w-4 h-4 text-[#888894] absolute left-3.5 top-3" />
-                  <input
-                    type="tel"
-                    required
-                    value={contactNumber}
-                    onChange={(e) => setContactNumber(e.target.value)}
-                    placeholder="+91 98765 43210"
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-[#e8e5dc] bg-[#fbfbf9] text-xs font-semibold text-[#111116] focus:outline-none focus:border-[#b8860b] focus:ring-2 focus:ring-[#d4af37]/20"
-                  />
-                </div>
-              </div>
-
-              {/* Email Address */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-[#62626e]">
-                  University Email Address *
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-[#888894] absolute left-3.5 top-3" />
+                <div>
+                  <label className="block text-xs font-semibold text-[#111116] mb-1">
+                    Institutional Email Address
+                  </label>
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="student@swaminarayanuniversity.ac.in"
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-[#e8e5dc] bg-[#fbfbf9] text-xs font-semibold text-[#111116] focus:outline-none focus:border-[#b8860b] focus:ring-2 focus:ring-[#d4af37]/20"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-[#e8e5dc] rounded-xl outline-none focus:border-[#b8860b]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#111116] mb-1">
+                    Mobile Contact Number
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={contactNumber}
+                    onChange={(e) => setContactNumber(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-[#e8e5dc] rounded-xl outline-none focus:border-[#b8860b]"
                   />
                 </div>
               </div>
-            </div>
 
-            <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-[#d4af37]/30 flex items-start gap-3">
-              <AlertCircle className="w-4 h-4 text-[#b8860b] shrink-0 mt-0.5" />
-              <div className="text-[11px] text-[#745c00] leading-relaxed">
-                <strong>Campus Pass Synchronization:</strong> When you press <em>Save Profile Changes</em>, your current active event passes (Thanganat 5.0, SU-MUN, and HackSU) will automatically update their attendee name to <strong>{name}</strong> and enrollment code to <strong>{rollNumber}</strong> for gate turnstile verification.
+              <div className="pt-4 border-t flex justify-end">
+                <button
+                  type="submit"
+                  className="bg-gold-gradient text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider shadow-gold-glow hover:opacity-95 flex items-center gap-2"
+                >
+                  <Check className="w-4 h-4" />
+                  Save Profile Updates
+                </button>
               </div>
             </div>
-          </div>
+          </form>
+        )}
 
-          {/* Action Footer */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-            <button
-              type="button"
-              onClick={() => onNavigate('passes')}
-              className="text-xs font-semibold text-[#62626e] hover:text-[#111116] order-2 sm:order-1"
-            >
-              Cancel & Return
-            </button>
+        {/* ===================== TAB 2: ACTIVITY TIMELINE ===================== */}
+        {profileTab === 'activity' && (
+          <div className="bg-white border border-[#e8e5dc] rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="flex items-center justify-between pb-4 border-b border-[#e8e5dc]">
+              <div>
+                <h3 className="font-serif text-xl font-bold text-[#111116]">
+                  User Activity Log & History
+                </h3>
+                <p className="text-xs text-[#62626e] mt-0.5">
+                  Every interaction across passes, wishlists, and payments is timestamped and persisted.
+                </p>
+              </div>
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-50 text-[#b8860b] border border-[#d4af37]/30">
+                {activityLogs.length} Events Tracked
+              </span>
+            </div>
 
-            <button
-              type="submit"
-              className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-gold-gradient text-white text-xs sm:text-sm font-bold shadow-gold-glow hover:opacity-95 flex items-center justify-center gap-2 transition-all active:scale-95 order-1 sm:order-2"
-            >
-              <Check className="w-4 h-4" />
-              Save Profile Changes
-            </button>
+            {/* Timeline Items */}
+            <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-[#e8e5dc]">
+              {activityLogs.map((log) => (
+                <div key={log.id} className="relative group">
+                  {/* Dot */}
+                  <div className="absolute -left-6 top-1 w-5 h-5 rounded-full bg-white border-2 border-[#b8860b] flex items-center justify-center shadow-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#b8860b]"></span>
+                  </div>
+
+                  <div className="p-4 bg-[#fbfbf9] rounded-2xl border border-[#e8e5dc] hover:border-[#d4af37]/60 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 font-bold text-xs text-[#111116]">
+                        {getActivityIcon(log.type)}
+                        <span>{log.title}</span>
+                      </div>
+                      <span className="text-[10px] text-[#888894] font-medium flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {log.timestamp}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-[#62626e] mt-1.5 leading-relaxed">
+                      {log.description}
+                    </p>
+
+                    {log.passId && (
+                      <div className="mt-2 inline-block font-mono text-[10px] font-bold text-[#b8860b] bg-amber-50 px-2 py-0.5 rounded border border-[#d4af37]/30">
+                        Pass ID: {log.passId}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {activityLogs.length === 0 && (
+                <div className="text-center py-8 text-[#888894] text-xs">
+                  No activity logs recorded yet. Book passes or save events to build your timeline!
+                </div>
+              )}
+            </div>
           </div>
-        </form>
+        )}
       </div>
     </main>
   );

@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Search, Bell, User, Menu, X, Calendar, Ticket, 
+  Bell, User, Menu, X, Calendar, Ticket, 
   Compass, Home, Bookmark, Settings, MessageSquare, 
   Moon, Sun, LogOut, LogIn, ChevronDown, ShieldCheck, Heart 
 } from 'lucide-react';
 import { UserProfile } from '../data/eventsData';
 
 interface NavbarProps {
-  activeView: 'home' | 'explore' | 'details' | 'passes' | 'profile' | 'login' | 'wishlist';
-  onNavigate: (view: 'home' | 'explore' | 'details' | 'passes' | 'profile' | 'login' | 'wishlist') => void;
+  activeView: 'home' | 'explore' | 'details' | 'passes' | 'profile' | 'login' | 'wishlist' | 'admin';
+  onNavigate: (view: 'home' | 'explore' | 'details' | 'passes' | 'profile' | 'login' | 'wishlist' | 'admin') => void;
   activePassCount: number;
   wishlistCount: number;
   userProfile: UserProfile;
@@ -51,7 +51,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleNavClick = (view: 'home' | 'explore' | 'details' | 'passes' | 'profile' | 'login' | 'wishlist') => {
+  const handleNavClick = (view: 'home' | 'explore' | 'details' | 'passes' | 'profile' | 'login' | 'wishlist' | 'admin') => {
     onNavigate(view);
     setMobileMenuOpen(false);
     setAccountDropdownOpen(false);
@@ -158,20 +158,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             )}
           </button>
+
+          <button
+            onClick={() => handleNavClick('admin')}
+            className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-full transition-all flex items-center gap-1.5 ${
+              activeView === 'admin'
+                ? 'bg-gradient-to-r from-[#111116] to-[#2c2214] text-[#fed65b] shadow-sm border border-[#d4af37]/40'
+                : 'text-[#62626e] hover:text-[#b8860b] hover:bg-[#f4f3ef]'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-[#b8860b]" />
+            <span>Admin</span>
+          </button>
         </nav>
 
         {/* Zone 3: Utility Controls & User Profile / Login */}
         <div className="flex items-center gap-1.5 sm:gap-2.5">
           
-          {/* Quick Search */}
-          <button
-            onClick={() => handleNavClick('explore')}
-            aria-label="Search events"
-            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-[#e8e5dc] flex items-center justify-center text-[#2d2d34] hover:border-[#b8860b] hover:text-[#b8860b] hover:bg-[#fbfbf9] transition-colors"
-            title="Search Campus Events"
-          >
-            <Search className="w-4 h-4" />
-          </button>
 
           {/* Quick Theme Toggle Button (Light / Dark) */}
           <button
@@ -304,7 +307,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <span>Campus Feedback</span>
                     </button>
 
-                    {/* 4. Theme Dark/Light Option (Interactive theme toggle) */}
+                    {/* 4. Admin Portal Option */}
+                    <button
+                      onClick={() => {
+                        setAccountDropdownOpen(false);
+                        handleNavClick('admin');
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#2d2d34] hover:bg-[#f4f3ef] hover:text-[#b8860b] transition-colors text-left"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-[#b8860b]" />
+                      <span>Admin Portal & Security</span>
+                    </button>
+
+                    {/* 5. Theme Dark/Light Option (Interactive theme toggle) */}
                     <button
                       onClick={() => {
                         onToggleTheme();
@@ -422,6 +437,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {wishlistCount}
               </span>
             )}
+          </button>
+
+          <button
+            onClick={() => handleNavClick('admin')}
+            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-colors ${
+              activeView === 'admin' ? 'bg-[#111116] text-[#fed65b]' : 'text-[#2d2d34] hover:bg-[#f4f3ef]'
+            }`}
+          >
+            <span className="flex items-center gap-3">
+              <ShieldCheck className="w-4 h-4 text-[#b8860b]" />
+              Admin Portal
+            </span>
+            <span className="text-[10px] bg-amber-50 text-[#b8860b] px-2 py-0.5 rounded-full font-bold border border-[#d4af37]/30">
+              Passkey Gate
+            </span>
           </button>
 
           {/* Theme Switcher in Mobile Drawer */}

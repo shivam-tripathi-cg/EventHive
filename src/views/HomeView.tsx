@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Search, Calendar, Filter, Users, Award, ShieldCheck, Ticket, 
+  Calendar, Filter, Users, Award, ShieldCheck, Ticket, 
   ArrowRight, Radio, MapPin, Clock, Sparkles, ChevronDown, CheckCircle, 
-  ExternalLink, Compass, Plus, Music, Code, Trophy, Heart, Bookmark
+  ExternalLink, Compass, Plus, Music, Code, Trophy, Heart
 } from 'lucide-react';
-import { CAMPUS_EVENTS, EventItem } from '../data/eventsData';
+import { EventItem } from '../data/eventsData';
+import { DatabaseService } from '../data/dbStore';
 
 interface HomeViewProps {
   onNavigate: (view: 'home' | 'explore' | 'details' | 'passes' | 'profile' | 'wishlist') => void;
@@ -21,21 +22,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
   wishlistIds,
   onToggleWishlist,
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [eventsList, setEventsList] = useState<EventItem[]>(() => DatabaseService.getEvents());
   const [submitEventModal, setSubmitEventModal] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  // Filter events based on search
-  const flagshipEvents = CAMPUS_EVENTS.filter((e) => {
-    const matchQuery = e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                       e.venue.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchQuery;
-  }).slice(0, 4);
+  useEffect(() => {
+    const handleDbUpdate = () => {
+      setEventsList(DatabaseService.getEvents());
+    };
+    window.addEventListener('eventhive_db_updated', handleDbUpdate);
+    return () => window.removeEventListener('eventhive_db_updated', handleDbUpdate);
+  }, []);
 
-  const handleFilterSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onNavigate('explore');
-  };
+  // Flagship campus events preview
+  const flagshipEvents = eventsList.slice(0, 4);
 
   const handleEventClick = (event: EventItem) => {
     onSelectEvent(event);
@@ -66,49 +66,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
           Tech fests, cultural nights, workshops, and sports meets — all verified campus gatherings with digital QR turnstile passes.
         </p>
 
-        {/* Action Buttons */}
-        <div className="mt-6 sm:mt-8 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
-          <button
-            onClick={() => onNavigate('explore')}
-            className="bg-gold-gradient text-white px-6 py-3 rounded-full text-xs sm:text-sm font-bold tracking-wide shadow-gold-glow hover:opacity-95 transition-all flex items-center gap-2 group active:scale-95"
-          >
-            <span>Explore Events</span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </button>
-          
-          <button
-            onClick={() => onNavigate('wishlist')}
-            className="bg-white border border-[#e8e5dc] text-[#111116] px-5 py-3 rounded-full text-xs sm:text-sm font-bold tracking-wide hover:border-[#b8860b] hover:bg-[#fbfbf9] transition-all flex items-center gap-2 shadow-sm"
-          >
-            <Bookmark className="w-4 h-4 text-[#b8860b]" />
-            <span>Saved Wishlist ({wishlistIds.length})</span>
-          </button>
-        </div>
-
-        {/* Responsive Search Bar */}
-        <div className="mt-10 max-w-3xl mx-auto bg-white border border-[#e8e5dc] rounded-2xl p-2 sm:p-2.5 shadow-card-elevated">
-          <form onSubmit={handleFilterSubmit} className="flex flex-col sm:flex-row items-center gap-2">
-            <div className="w-full flex items-center gap-2.5 px-3.5 py-2.5 bg-[#fbfbf9] rounded-xl border border-transparent focus-within:border-[#b8860b]">
-              <Search className="w-4 h-4 text-[#62626e] shrink-0" />
-              <input
-                type="text"
-                placeholder="Search by fest, club, hall or date..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-transparent text-xs sm:text-sm text-[#111116] placeholder:text-[#62626e] outline-none"
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gold-gradient text-white text-xs font-bold whitespace-nowrap shadow-sm hover:opacity-95 transition-all"
-            >
-              Search
-            </button>
-          </form>
-        </div>
-
         {/* Quick Stat Counters */}
-        <div className="mt-10 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto">
+        <div className="mt-8 sm:mt-10 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto">
           {[
             { value: '45+', label: 'Active Student Clubs', desc: 'Tech, Dance & Fine Arts' },
             { value: '120+', label: 'Annual Campus Fests', desc: 'Symposiums & Galas' },

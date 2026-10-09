@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, CheckCircle2, Ticket, QrCode, ShieldCheck, Sparkles, User, Hash } from 'lucide-react';
-import { EventItem, PassItem } from '../data/eventsData';
+import { EventItem, PassItem, UserProfile } from '../data/eventsData';
 import { downloadThanganatPass } from '../utils/passGenerator';
+import { ScanableQrCode } from './ScanableQrCode';
+import { DatabaseService } from '../data/dbStore';
 
 interface PassClaimModalProps {
   isOpen: boolean;
@@ -9,6 +11,7 @@ interface PassClaimModalProps {
   event: EventItem | null;
   onPassClaimed: (pass: PassItem) => void;
   onViewPasses: () => void;
+  userProfile?: UserProfile;
 }
 
 export const PassClaimModal: React.FC<PassClaimModalProps> = ({
@@ -17,14 +20,22 @@ export const PassClaimModal: React.FC<PassClaimModalProps> = ({
   event,
   onPassClaimed,
   onViewPasses,
+  userProfile,
 }) => {
-  const [studentName, setStudentName] = useState('Dev Patel');
-  const [rollNumber, setRollNumber] = useState('SU202204192');
+  const [studentName, setStudentName] = useState(userProfile?.name || 'Shivam Tripathi');
+  const [rollNumber, setRollNumber] = useState(userProfile?.rollNumber || 'SU202204192');
   const [tier, setTier] = useState('Student VIP Entry');
   const [includeGuest, setIncludeGuest] = useState(false);
   const [guestName, setGuestName] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
   const [generatedPass, setGeneratedPass] = useState<PassItem | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setStudentName(userProfile?.name || 'Shivam Tripathi');
+      setRollNumber(userProfile?.rollNumber || 'SU202204192');
+    }
+  }, [isOpen, userProfile]);
 
   if (!isOpen || !event) return null;
 
@@ -32,7 +43,10 @@ export const PassClaimModal: React.FC<PassClaimModalProps> = ({
     e.preventDefault();
     const randomCode = Math.floor(10000 + Math.random() * 90000);
     const passPrefix = event.id.slice(0, 5).toUpperCase();
-    const newPassId = `#SU-${passPrefix}-${randomCode}`;
+    const newPassId = `SU-${passPrefix}-${randomCode}`;
+    const safeName = studentName.trim() || 'Shivam Tripathi';
+    const safeRoll = rollNumber.trim() || 'SU202204192';
+    const passPayload = `https://eventhive.in/verify?passId=${newPassId}&student=${encodeURIComponent(safeName)}&roll=${encodeURIComponent(safeRoll)}&event=${encodeURIComponent(event.title)}&status=VALID`;
 
     const newPass: PassItem = {
       id: `pass-${Date.now()}`,
@@ -48,8 +62,43 @@ export const PassClaimModal: React.FC<PassClaimModalProps> = ({
       status: 'active',
       badge: 'Active • Verified Entry',
       passType: tier,
-      qrCodeSeed: `${newPassId}-${rollNumber}-VALIDATED`,
+      qrCodeSeed: passPayload,
+      studentName: safeName,
+      studentRoll: safeRoll,
+      studentCourse: userProfile?.course || 'B.Tech CSE (Computer Science & Engineering)',
     };
+
+    // Save attendee to central database
+    DatabaseService.addAttendee({
+      id: `att-${Date.now()}`,
+      passId: newPassId,
+      eventId: event.id,
+      eventTitle: event.title,
+      studentName: safeName,
+      studentRoll: safeRoll,
+      studentCourse: userProfile?.course || 'B.Tech CSE (Computer Science & Engineering)',
+      studentEmail: userProfile?.email || `${safeRoll.toLowerCase()}@swaminarayanuniversity.ac.in`,
+      studentPhone: userProfile?.contactNumber || '+91 98250 14920',
+      studentAvatar: userProfile?.avatar || '',
+      passType: tier,
+      bookingDate: new Date().toISOString().replace('T', ' ').slice(0, 16),
+      isCheckedIn: false,
+      seatZone: 'Zone A • Circle 01',
+      gateInfo: newPass.gateInfo,
+      pricePaid: 0,
+      paymentMethod: 'Student Free Pass',
+    });
+
+    // Log user activity
+    DatabaseService.logActivity({
+      userId: safeRoll,
+      type: 'pass_claimed',
+      title: `Pass Claimed — ${event.title}`,
+      description: `Issued ${tier} (${newPassId}) for ${safeName}.`,
+      timestamp: 'Just now',
+      eventId: event.id,
+      passId: newPassId,
+    });
 
     onPassClaimed(newPass);
     setGeneratedPass(newPass);
@@ -249,9 +298,11 @@ export const PassClaimModal: React.FC<PassClaimModalProps> = ({
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="w-16 h-16 bg-white border border-[#e8e5dc] rounded-lg p-1.5 flex items-center justify-center shrink-0">
-                    <QrCode className="w-12 h-12 text-[#111116]" />
-                  </div>
+                  <ScanableQrCode
+                    payload={generatedPass.qrCodeSeed}
+                    size={68}
+                    allowInspect={false}
+                  />
                   <div className="text-xs space-y-1">
                     <p className="font-semibold text-[#111116]">{generatedPass.gateInfo}</p>
                     <p className="text-[#62626e]">{generatedPass.turnstileInfo}</p>

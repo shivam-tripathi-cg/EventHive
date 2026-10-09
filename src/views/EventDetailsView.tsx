@@ -4,20 +4,24 @@ import {
   Share2, ArrowLeft, Star, CheckCircle, Play, Sparkles, AlertCircle, 
   Coffee, Droplet, PlusCircle, Lock, Search, Car, ExternalLink, HelpCircle
 } from 'lucide-react';
-import { EventItem } from '../data/eventsData';
+import { EventItem, UserProfile } from '../data/eventsData';
 
 interface EventDetailsViewProps {
   onNavigate: (view: 'home' | 'explore' | 'details' | 'passes' | 'profile' | 'login' | 'wishlist') => void;
   onOpenClaimModal: (event: EventItem) => void;
+  onOpenUpiPayment?: (event: EventItem) => void;
   wishlistIds?: string[];
   onToggleWishlist?: (eventId: string) => void;
+  userProfile?: UserProfile;
 }
 
 export const EventDetailsView: React.FC<EventDetailsViewProps> = ({
   onNavigate,
   onOpenClaimModal,
+  onOpenUpiPayment,
   wishlistIds = [],
   onToggleWishlist,
+  userProfile,
 }) => {
   const isBookmarked = wishlistIds.includes('thanganat-5');
   const [activeSection, setActiveSection] = useState('about');
@@ -594,14 +598,24 @@ export const EventDetailsView: React.FC<EventDetailsViewProps> = ({
               </div>
             </div>
 
-            {/* Claim Pass Button */}
-            <button
-              onClick={() => onOpenClaimModal(mockEvent)}
-              className="w-full bg-gold-gradient text-white py-3.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider shadow-gold-glow hover:opacity-95 transition-all flex items-center justify-center gap-2"
-            >
-              <Ticket className="w-4 h-4" />
-              Claim University Pass
-            </button>
+            {/* Dual Pass Options: Free Student Pass & VIP UPI QR Pass */}
+            <div className="space-y-2.5">
+              <button
+                onClick={() => onOpenClaimModal(mockEvent)}
+                className="w-full bg-[#111116] text-white py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-[#22222c] transition-all flex items-center justify-center gap-2"
+              >
+                <Ticket className="w-4 h-4" />
+                Claim Free University Pass
+              </button>
+
+              <button
+                onClick={() => onOpenUpiPayment ? onOpenUpiPayment(mockEvent) : onOpenClaimModal(mockEvent)}
+                className="w-full bg-gold-gradient text-white py-3.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider shadow-gold-glow hover:opacity-95 transition-all flex items-center justify-center gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                Book VIP Pass via UPI QR (₹199)
+              </button>
+            </div>
 
             {/* Verification Promises */}
             <div className="space-y-2 pt-2 text-xs text-[#2d2d34]">
@@ -682,11 +696,11 @@ export const EventDetailsView: React.FC<EventDetailsViewProps> = ({
               >
                 <div>
                   <label className="text-xs font-semibold text-[#111116]">Participant Name</label>
-                  <input required defaultValue="Dev Patel" className="w-full p-2 text-xs border border-[#e8e5dc] rounded-lg mt-1 outline-none" />
+                  <input required defaultValue={userProfile?.name || 'Shivam Tripathi'} className="w-full p-2 text-xs border border-[#e8e5dc] rounded-lg mt-1 outline-none" />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-[#111116]">SU Enrollment Number</label>
-                  <input required defaultValue="SU202204192" className="w-full p-2 text-xs border border-[#e8e5dc] rounded-lg mt-1 outline-none font-mono" />
+                  <input required defaultValue={userProfile?.rollNumber || 'SU202204192'} className="w-full p-2 text-xs border border-[#e8e5dc] rounded-lg mt-1 outline-none font-mono" />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-[#111116]">Contact Number</label>

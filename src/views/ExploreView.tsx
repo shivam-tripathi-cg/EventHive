@@ -5,6 +5,7 @@ import {
   Camera, Film, Trophy, Code, Award, Heart, Ticket
 } from 'lucide-react';
 import { CAMPUS_EVENTS, CONCLUDED_EVENTS, EventItem } from '../data/eventsData';
+import { DatabaseService } from '../data/dbStore';
 
 interface ExploreViewProps {
   onNavigate: (view: 'home' | 'explore' | 'details' | 'passes' | 'profile' | 'wishlist') => void;
@@ -21,10 +22,19 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
   wishlistIds,
   onToggleWishlist,
 }) => {
+  const [eventsList, setEventsList] = useState<EventItem[]>(() => DatabaseService.getEvents());
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [rsvpState, setRsvpState] = useState<Record<string, boolean>>({});
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleDbUpdate = () => {
+      setEventsList(DatabaseService.getEvents());
+    };
+    window.addEventListener('eventhive_db_updated', handleDbUpdate);
+    return () => window.removeEventListener('eventhive_db_updated', handleDbUpdate);
+  }, []);
 
   // Keyboard shortcut cmd+k / ctrl+k for search
   useEffect(() => {
@@ -61,8 +71,8 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Filter events
-  const filteredEvents = CAMPUS_EVENTS.filter((evt) => {
+  // Filter events from persistent database store
+  const filteredEvents = eventsList.filter((evt) => {
     const matchCategory = activeCategory === 'all' || evt.category === activeCategory;
     const matchQuery = 
       evt.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -139,7 +149,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               {cat.label}
               {cat.id === 'all' && (
                 <span className="text-[10px] opacity-80 font-mono">
-                  ({CAMPUS_EVENTS.length})
+                  ({eventsList.length})
                 </span>
               )}
             </button>

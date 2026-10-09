@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { X, Star, Send, CheckCircle2, MessageSquare, Sparkles } from 'lucide-react';
 
+import { DatabaseService } from '../data/dbStore';
+
 interface FeedbackModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -24,6 +26,27 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmitFeedback({ rating, category, comment });
+
+    // Save to database
+    DatabaseService.addFeedback({
+      eventId: 'campus-general',
+      eventTitle: 'Campus Gathering & Logistics',
+      studentName: userName || 'Shivam Tripathi',
+      studentRoll: 'SU202204192',
+      rating,
+      category,
+      message: comment.trim() || 'Great campus event experience!',
+    });
+
+    // Log user activity
+    DatabaseService.logActivity({
+      userId: 'SU202204192',
+      type: 'feedback_submitted',
+      title: 'Feedback Submitted',
+      description: `Rated ${rating} Stars for ${category}.`,
+      timestamp: 'Just now',
+    });
+
     setIsSubmitted(true);
     setTimeout(() => {
       setIsSubmitted(false);

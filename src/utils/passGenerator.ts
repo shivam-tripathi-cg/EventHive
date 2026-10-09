@@ -4,7 +4,7 @@
  */
 
 export function downloadThanganatPass(studentName: string, rollNumber: string, course: string) {
-  const safeName = studentName || 'Dev Patel';
+  const safeName = studentName || 'Shivam Tripathi';
   const safeRoll = rollNumber || 'SU202204192';
   const safeCourse = course || 'B.Tech CSE (Computer Science & Engineering)';
   const passSerial = `SU-THANG-5-${Math.floor(10000 + Math.random() * 90000)}`;

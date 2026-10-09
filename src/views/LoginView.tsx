@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { 
   GraduationCap, Shield, UserCheck, Users, Lock, 
   ArrowRight, Key, Mail, Phone, Eye, EyeOff, Sparkles, 
-  Check, UserPlus, LogIn, AlertCircle, BookOpen, User 
+  Check, UserPlus, LogIn, AlertCircle, BookOpen, User,
+  Smartphone, MessageSquare, RefreshCw
 } from 'lucide-react';
 import { UserProfile, AVAILABLE_COURSES, RegisteredAccount } from '../data/eventsData';
+import { DatabaseService } from '../data/dbStore';
 
 interface LoginViewProps {
   onLoginSuccess: (profile: Partial<UserProfile>) => void;
@@ -21,12 +23,23 @@ export const LoginView: React.FC<LoginViewProps> = ({
   registeredAccounts,
   onRegisterAccount,
 }) => {
-  // Mode: 'signin' or 'signup'
+  // Method: 'mobile_otp' vs 'credentials'
+  const [authMethod, setAuthMethod] = useState<'mobile_otp' | 'credentials'>('mobile_otp');
+  
+  // Credentials mode: 'signin' or 'signup'
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [role, setRole] = useState<RoleType>('student');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Mobile OTP States
+  const [phoneNumber, setPhoneNumber] = useState('9825014920');
+  const [otpSent, setOtpSent] = useState(false);
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [enteredOtp, setEnteredOtp] = useState('');
+  const [otpTimer, setOtpTimer] = useState(60);
+  const [simulatedSms, setSimulatedSms] = useState<string | null>(null);
 
   // Sign In inputs
   const [loginId, setLoginId] = useState('SU202204192');
@@ -41,19 +54,76 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [signupContact, setSignupContact] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
 
-  // Handle switching tabs
+  // Handle Send OTP
+  const handleSendOtp = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      setErrorMsg('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(randomOtp);
+    setOtpSent(true);
+    setOtpTimer(60);
+
+    const smsText = `[SMS from SU-PORTAL]: Your login OTP is ${randomOtp}. Valid for 10 minutes.`;
+    setSimulatedSms(smsText);
+  };
+
+  // Handle Verify OTP
+  const handleVerifyOtp = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+
+    if (enteredOtp.trim() !== generatedOtp.trim()) {
+      setErrorMsg('Invalid OTP! Please check the code in the SMS notification above.');
+      return;
+    }
+
+    // Match phone with registered accounts or fallback
+    const matched = registeredAccounts.find(
+      (acc) => acc.contactNumber.replace(/\D/g, '').includes(phoneNumber.replace(/\D/g, ''))
+    );
+
+    const scholarName = matched ? matched.name : 'Shivam Tripathi';
+    const scholarRoll = matched ? matched.loginId : 'SU202204192';
+    const scholarCourse = matched ? matched.course : 'B.Tech CSE (Computer Science & Engineering)';
+    const scholarRole = matched ? matched.role : 'student';
+
+    DatabaseService.logActivity({
+      userId: scholarRoll,
+      type: 'login',
+      title: 'Logged in via Mobile OTP',
+      description: `Authenticated using mobile number +91 ${phoneNumber}.`,
+      timestamp: 'Just now',
+    });
+
+    onLoginSuccess({
+      name: scholarName,
+      rollNumber: scholarRoll,
+      role: scholarRole,
+      course: scholarCourse,
+      contactNumber: `+91 ${phoneNumber}`,
+      email: matched?.email || `${scholarRoll.toLowerCase()}@swaminarayanuniversity.ac.in`,
+      isLoggedIn: true,
+    });
+  };
+
+  // Handle switching role
   const handleRoleChange = (newRole: RoleType) => {
     setRole(newRole);
     setErrorMsg('');
     setSuccessMsg('');
     
-    // Provide sensible default placeholders for demo
     if (newRole === 'student') {
       setLoginId('SU202204192');
       setLoginPassword('student@2025');
     } else if (newRole === 'admin') {
-      setLoginId('admin.affairs@swaminarayanuniversity.ac.in');
-      setLoginPassword('SU-ADMIN-SECURE-KEY');
+      setLoginId('trident1593');
+      setLoginPassword('trident1593');
     } else if (newRole === 'faculty') {
       setLoginId('FAC-CSE-804');
       setLoginPassword('faculty@2025');
@@ -63,7 +133,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
     }
   };
 
-  // Sign In Submission - STRICT VALIDATION AGAINST REGISTERED ACCOUNTS
+  // Sign In Submission
   const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
@@ -77,7 +147,36 @@ export const LoginView: React.FC<LoginViewProps> = ({
       return;
     }
 
-    // Match strictly against registeredAccounts
+    // Direct verification for the exclusive admin credential trident1593
+    if (role === 'admin' || trimmedId === 'trident1593' || trimmedPw === 'trident1593') {
+      if (trimmedId === 'trident1593' && trimmedPw === 'trident1593') {
+        DatabaseService.logActivity({
+          userId: 'trident1593',
+          type: 'login',
+          title: 'Admin Authenticated',
+          description: 'Single admin credential trident1593 verified.',
+          timestamp: 'Just now',
+        });
+        localStorage.setItem('eventhive_admin_unlocked', 'true');
+        onLoginSuccess({
+          name: 'University Admin',
+          rollNumber: 'trident1593',
+          role: 'admin',
+          course: 'Campus Administration Directorate',
+          department: 'Administrative Directorate',
+          email: 'admin@swaminarayanuniversity.ac.in',
+          contactNumber: '+91 98111 22334',
+          age: 38,
+          gender: 'Male',
+          isLoggedIn: true,
+        });
+        return;
+      } else if (role === 'admin') {
+        setErrorMsg('Invalid Admin Credentials! Authorized admin credential is: trident1593');
+        return;
+      }
+    }
+
     const matchedAccount = registeredAccounts.find(
       (acc) =>
         acc.loginId.toLowerCase() === trimmedId.toLowerCase() &&
@@ -86,7 +185,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
     );
 
     if (!matchedAccount) {
-      // Find if ID exists with wrong password or role
       const idExists = registeredAccounts.find(
         (acc) => acc.loginId.toLowerCase() === trimmedId.toLowerCase()
       );
@@ -97,13 +195,20 @@ export const LoginView: React.FC<LoginViewProps> = ({
         setErrorMsg('Incorrect Password! Please enter the exact password you registered with.');
       } else {
         setErrorMsg(
-          `No registered account found for ID "${trimmedId}". Please check your credentials or switch to "Create Account (Sign Up)" below.`
+          `No registered account found for ID "${trimmedId}". Switch to "Create Account (Sign Up)" below.`
         );
       }
       return;
     }
 
-    // Authenticate with EXACT details of this registered user!
+    DatabaseService.logActivity({
+      userId: matchedAccount.loginId,
+      type: 'login',
+      title: 'User Authenticated',
+      description: `Signed in with credential ID ${matchedAccount.loginId}.`,
+      timestamp: 'Just now',
+    });
+
     onLoginSuccess({
       name: matchedAccount.name,
       rollNumber: matchedAccount.loginId,
@@ -145,7 +250,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
       return;
     }
 
-    // Check if ID already exists
     const alreadyExists = registeredAccounts.some(
       (acc) => acc.loginId.toLowerCase() === trimmedId.toLowerCase()
     );
@@ -155,7 +259,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
       return;
     }
 
-    // Create the new account
     const newAcc: RegisteredAccount = {
       id: `acc-${Date.now()}`,
       name: trimmedName,
@@ -172,7 +275,14 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
     onRegisterAccount(newAcc);
 
-    // Auto-login immediately with the newly registered credentials
+    DatabaseService.logActivity({
+      userId: newAcc.loginId,
+      type: 'login',
+      title: 'Account Created & Authenticated',
+      description: `New user registration for ${newAcc.name} (${newAcc.loginId}).`,
+      timestamp: 'Just now',
+    });
+
     onLoginSuccess({
       name: newAcc.name,
       rollNumber: newAcc.loginId,
@@ -202,393 +312,349 @@ export const LoginView: React.FC<LoginViewProps> = ({
             Swaminarayan University • Central Authentication (CAS)
           </div>
           <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[#111116] pt-1">
-            {authMode === 'signin' ? 'Sign In to Portal' : 'Create Student / User Account'}
+            {authMethod === 'mobile_otp' ? 'Mobile OTP Login' : (authMode === 'signin' ? 'Sign In to Portal' : 'Create User Account')}
           </h1>
           <p className="text-xs text-[#62626e] max-w-xs mx-auto">
-            {authMode === 'signin' 
-              ? 'Only registered ID and Password can log in. Passes reflect your exact account credentials.' 
-              : 'Register your own ID and Password to claim verified campus event passes.'}
+            {authMethod === 'mobile_otp'
+              ? 'Instant verification via 6-digit one-time SMS passcode sent to your mobile.'
+              : 'Individual login with your registered ID and password. Passes reflect your exact account credentials.'}
           </p>
         </div>
 
-        {/* Auth Mode Toggle: Sign In vs Sign Up */}
+        {/* Primary Auth Method Switch: Mobile OTP vs ID/Password */}
         <div className="flex rounded-2xl bg-white border border-[#e8e5dc] p-1 shadow-sm">
           <button
             type="button"
-            onClick={() => { setAuthMode('signin'); setErrorMsg(''); setSuccessMsg(''); }}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-              authMode === 'signin'
-                ? 'bg-gold-gradient text-white shadow-gold-glow'
-                : 'text-[#62626e] hover:text-[#111116] hover:bg-[#f4f3ef]'
+            onClick={() => { setAuthMethod('mobile_otp'); setErrorMsg(''); }}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              authMethod === 'mobile_otp'
+                ? 'bg-[#111116] text-[#fed65b] shadow-sm'
+                : 'text-[#62626e] hover:text-[#111116]'
             }`}
           >
-            <LogIn className="w-3.5 h-3.5" />
-            <span>Sign In</span>
+            <Smartphone className="w-3.5 h-3.5" />
+            <span>Mobile OTP Login</span>
           </button>
 
           <button
             type="button"
-            onClick={() => { setAuthMode('signup'); setErrorMsg(''); setSuccessMsg(''); }}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-              authMode === 'signup'
-                ? 'bg-gold-gradient text-white shadow-gold-glow'
-                : 'text-[#62626e] hover:text-[#111116] hover:bg-[#f4f3ef]'
+            onClick={() => { setAuthMethod('credentials'); setErrorMsg(''); }}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              authMethod === 'credentials'
+                ? 'bg-[#111116] text-[#fed65b] shadow-sm'
+                : 'text-[#62626e] hover:text-[#111116]'
             }`}
           >
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>Create Account (Sign Up)</span>
+            <Key className="w-3.5 h-3.5" />
+            <span>ID & Password</span>
           </button>
         </div>
 
-        {/* 4 Role Selector Tabs */}
-        <div className="grid grid-cols-4 gap-1 p-1 bg-white border border-[#e8e5dc] rounded-2xl shadow-sm">
-          <button
-            type="button"
-            onClick={() => handleRoleChange('student')}
-            className={`py-2 px-1 text-center rounded-xl text-[11px] font-bold transition-all flex flex-col items-center gap-0.5 ${
-              role === 'student'
-                ? 'bg-[#111116] text-[#fed65b] shadow-sm'
-                : 'text-[#62626e] hover:text-[#111116] hover:bg-[#f4f3ef]'
-            }`}
-          >
-            <GraduationCap className="w-3.5 h-3.5" />
-            <span>Student</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleRoleChange('admin')}
-            className={`py-2 px-1 text-center rounded-xl text-[11px] font-bold transition-all flex flex-col items-center gap-0.5 ${
-              role === 'admin'
-                ? 'bg-[#111116] text-[#fed65b] shadow-sm'
-                : 'text-[#62626e] hover:text-[#111116] hover:bg-[#f4f3ef]'
-            }`}
-          >
-            <Shield className="w-3.5 h-3.5" />
-            <span>Admin</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleRoleChange('faculty')}
-            className={`py-2 px-1 text-center rounded-xl text-[11px] font-bold transition-all flex flex-col items-center gap-0.5 ${
-              role === 'faculty'
-                ? 'bg-[#111116] text-[#fed65b] shadow-sm'
-                : 'text-[#62626e] hover:text-[#111116] hover:bg-[#f4f3ef]'
-            }`}
-          >
-            <UserCheck className="w-3.5 h-3.5" />
-            <span>Faculty</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleRoleChange('guest')}
-            className={`py-2 px-1 text-center rounded-xl text-[11px] font-bold transition-all flex flex-col items-center gap-0.5 ${
-              role === 'guest'
-                ? 'bg-[#111116] text-[#fed65b] shadow-sm'
-                : 'text-[#62626e] hover:text-[#111116] hover:bg-[#f4f3ef]'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span>Guest</span>
-          </button>
-        </div>
-
-        {/* Main Authentication Card */}
-        <div className="bg-white border border-[#e8e5dc] rounded-3xl p-5 sm:p-7 shadow-card-elevated hover:shadow-card-3d transition-all space-y-5">
-          
-          {/* Header indicator */}
-          <div className="flex items-center justify-between pb-2 border-b border-[#f4f3ef]">
-            <span className="text-[11px] font-bold text-[#b8860b] uppercase tracking-wider">
-              {role === 'student' && 'Student Portal'}
-              {role === 'admin' && 'University Admin'}
-              {role === 'faculty' && 'Faculty Member'}
-              {role === 'guest' && 'Guest Visitor'}
-              {' • '}
-              {authMode === 'signin' ? 'Sign In' : 'New Registration'}
-            </span>
-
-            {authMode === 'signin' && (
-              <span className="text-[10px] text-[#888894] font-mono">
-                {registeredAccounts.filter((a) => a.role === role).length} registered
-              </span>
-            )}
+        {/* Error Alert */}
+        {errorMsg && (
+          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2 animate-in fade-in">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMsg}</span>
           </div>
+        )}
 
-          {/* Error / Alert notification */}
-          {errorMsg && (
-            <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-start gap-2 animate-in fade-in duration-200">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <div className="leading-relaxed">{errorMsg}</div>
-            </div>
-          )}
-
-          {/* Success notification */}
-          {successMsg && (
-            <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold flex items-start gap-2 animate-in fade-in duration-200">
-              <Check className="w-4 h-4 shrink-0 mt-0.5" />
-              <div>{successMsg}</div>
-            </div>
-          )}
-
-          {/* ================= MODE 1: SIGN IN ================= */}
-          {authMode === 'signin' ? (
-            <form onSubmit={handleSignIn} className="space-y-4">
-              
-              {/* ID Input */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-[#62626e]">
-                  {role === 'student' && 'General Register (GR) Number *'}
-                  {role === 'admin' && 'Admin Official Email / ID *'}
-                  {role === 'faculty' && 'Faculty Staff ID *'}
-                  {role === 'guest' && 'Registered Mobile Number *'}
-                </label>
-                <div className="relative">
-                  {role === 'student' && <GraduationCap className="w-4 h-4 text-[#888894] absolute left-3.5 top-3" />}
-                  {role === 'admin' && <Mail className="w-4 h-4 text-[#888894] absolute left-3.5 top-3" />}
-                  {role === 'faculty' && <UserCheck className="w-4 h-4 text-[#888894] absolute left-3.5 top-3" />}
-                  {role === 'guest' && <Phone className="w-4 h-4 text-[#888894] absolute left-3.5 top-3" />}
-                  <input
-                    type="text"
-                    required
-                    value={loginId}
-                    onChange={(e) => setLoginId(e.target.value)}
-                    placeholder={
-                      role === 'student' ? 'e.g. SU202204192' :
-                      role === 'admin' ? 'admin@swaminarayanuniversity.ac.in' :
-                      role === 'faculty' ? 'FAC-CSE-804' : '+91 99000 11223'
-                    }
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-[#e8e5dc] bg-[#fbfbf9] text-xs font-mono font-semibold text-[#111116] focus:outline-none focus:border-[#b8860b] focus:ring-2 focus:ring-[#d4af37]/20"
-                  />
+        {/* ===================== FLOW 1: MOBILE OTP ===================== */}
+        {authMethod === 'mobile_otp' && (
+          <div className="bg-white border border-[#e8e5dc] rounded-3xl p-6 shadow-sm space-y-4">
+            
+            {/* Simulated SMS Alert Banner */}
+            {simulatedSms && (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 text-xs space-y-1.5 animate-in slide-in-from-top">
+                <div className="flex items-center justify-between font-bold text-[11px] uppercase tracking-wider text-emerald-800">
+                  <span className="flex items-center gap-1">
+                    <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                    Incoming University SMS
+                  </span>
+                  <span className="text-emerald-600">Just Now</span>
                 </div>
+                <p className="font-mono text-xs">{simulatedSms}</p>
+                <button
+                  type="button"
+                  onClick={() => setEnteredOtp(generatedOtp)}
+                  className="mt-1 text-[11px] font-bold text-[#b8860b] underline"
+                >
+                  Click to Auto-fill ({generatedOtp})
+                </button>
               </div>
+            )}
 
-              {/* Password Input */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase tracking-wider text-[#62626e]">
-                    {role === 'admin' ? 'Security Access Key *' : role === 'guest' ? 'Access Passcode / OTP *' : 'Password *'}
+            {!otpSent ? (
+              <form onSubmit={handleSendOtp} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-[#111116] mb-1.5">
+                    Enter Mobile Number (+91)
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('signup');
-                      setErrorMsg('');
-                    }}
-                    className="text-[11px] text-[#b8860b] hover:underline font-semibold"
-                  >
-                    Need an account?
-                  </button>
-                </div>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-[#888894] absolute left-3.5 top-3" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder="Enter your registered password"
-                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-[#e8e5dc] bg-[#fbfbf9] text-xs font-semibold text-[#111116] focus:outline-none focus:border-[#b8860b] focus:ring-2 focus:ring-[#d4af37]/20"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-[#888894] hover:text-[#111116]"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Submit Sign In Button */}
-              <button
-                type="submit"
-                className="w-full py-3 rounded-full bg-gold-gradient text-white text-xs sm:text-sm font-bold shadow-gold-glow hover:opacity-95 flex items-center justify-center gap-2 transition-all active:scale-95 pt-2"
-              >
-                <span>Sign In with Credentials</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
-          ) : (
-            /* ================= MODE 2: SIGN UP (CREATE ACCOUNT) ================= */
-            <form onSubmit={handleSignUp} className="space-y-3.5">
-              
-              {/* Full Name */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold uppercase tracking-wider text-[#62626e]">
-                  Your Full Name *
-                </label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-[#888894] absolute left-3.5 top-3" />
-                  <input
-                    type="text"
-                    required
-                    value={signupName}
-                    onChange={(e) => setSignupName(e.target.value)}
-                    placeholder="e.g. Rahul Sharma"
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-[#e8e5dc] bg-[#fbfbf9] text-xs font-semibold text-[#111116] focus:outline-none focus:border-[#b8860b] focus:ring-2 focus:ring-[#d4af37]/20"
-                  />
-                </div>
-              </div>
-
-              {/* ID / GR Number */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold uppercase tracking-wider text-[#62626e]">
-                  {role === 'student' ? 'Assign Student GR / Roll Number *' : 'Assign Employee / User ID *'}
-                </label>
-                <div className="relative">
-                  <GraduationCap className="w-4 h-4 text-[#888894] absolute left-3.5 top-3" />
-                  <input
-                    type="text"
-                    required
-                    value={signupId}
-                    onChange={(e) => setSignupId(e.target.value)}
-                    placeholder={role === 'student' ? 'e.g. SU20248812' : 'e.g. FAC-2025'}
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-[#e8e5dc] bg-[#fbfbf9] text-xs font-mono font-semibold text-[#111116] focus:outline-none focus:border-[#b8860b] focus:ring-2 focus:ring-[#d4af37]/20"
-                  />
-                </div>
-              </div>
-
-              {/* Course Selection (For Students) */}
-              {role === 'student' && (
-                <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-[#62626e]">
-                    Enrolled Academic Course *
-                  </label>
-                  <div className="relative">
-                    <BookOpen className="w-4 h-4 text-[#888894] absolute left-3.5 top-3" />
-                    <select
-                      value={signupCourse}
-                      onChange={(e) => setSignupCourse(e.target.value)}
-                      className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-[#e8e5dc] bg-[#fbfbf9] text-xs font-semibold text-[#111116] focus:outline-none focus:border-[#b8860b] cursor-pointer"
-                    >
-                      {AVAILABLE_COURSES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              {/* Password */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-[#62626e]">
-                    Set Password *
-                  </label>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-[#888894] absolute left-3.5 top-3" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      value={signupPassword}
-                      onChange={(e) => setSignupPassword(e.target.value)}
-                      placeholder="At least 4 chars"
-                      className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-[#e8e5dc] bg-[#fbfbf9] text-xs font-semibold text-[#111116] focus:outline-none focus:border-[#b8860b]"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-[#62626e]">
-                    Confirm Password *
-                  </label>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-[#888894] absolute left-3.5 top-3" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      value={signupConfirmPassword}
-                      onChange={(e) => setSignupConfirmPassword(e.target.value)}
-                      placeholder="Re-enter password"
-                      className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-[#e8e5dc] bg-[#fbfbf9] text-xs font-semibold text-[#111116] focus:outline-none focus:border-[#b8860b]"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Contact & Email */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-[#62626e]">
-                    Contact Number
-                  </label>
-                  <div className="relative">
-                    <Phone className="w-4 h-4 text-[#888894] absolute left-3.5 top-3" />
+                  <div className="flex items-center border border-[#e8e5dc] rounded-xl px-3 py-2.5 focus-within:border-[#b8860b]">
+                    <span className="text-xs font-bold text-[#62626e] pr-2 border-r border-[#e8e5dc]">+91</span>
                     <input
                       type="tel"
-                      value={signupContact}
-                      onChange={(e) => setSignupContact(e.target.value)}
-                      placeholder="+91 98765 00000"
-                      className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-[#e8e5dc] bg-[#fbfbf9] text-xs font-semibold text-[#111116] focus:outline-none focus:border-[#b8860b]"
+                      required
+                      placeholder="98250 14920"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      className="w-full pl-2 text-sm bg-transparent outline-none font-mono"
+                      maxLength={10}
                     />
                   </div>
+                  <p className="text-[11px] text-[#888894] mt-1">
+                    Demo default: <strong>9825014920</strong> (registered to Shivam Tripathi)
+                  </p>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-[#62626e]">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-[#888894] absolute left-3.5 top-3" />
-                    <input
-                      type="email"
-                      value={signupEmail}
-                      onChange={(e) => setSignupEmail(e.target.value)}
-                      placeholder="student@su.ac.in"
-                      className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-[#e8e5dc] bg-[#fbfbf9] text-xs font-semibold text-[#111116] focus:outline-none focus:border-[#b8860b]"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Submit Sign Up Button */}
-              <button
-                type="submit"
-                className="w-full py-3 rounded-full bg-gold-gradient text-white text-xs sm:text-sm font-bold shadow-gold-glow hover:opacity-95 flex items-center justify-center gap-2 transition-all active:scale-95 pt-2"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>Register & Create My Account</span>
-              </button>
-            </form>
-          )}
-
-          {/* Quick Helper Links */}
-          <div className="pt-2 text-center text-xs text-[#62626e]">
-            {authMode === 'signin' ? (
-              <p>
-                Don't have an account yet?{' '}
                 <button
-                  type="button"
-                  onClick={() => { setAuthMode('signup'); setErrorMsg(''); }}
-                  className="font-bold text-[#b8860b] hover:underline"
+                  type="submit"
+                  className="w-full bg-gold-gradient text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider shadow-gold-glow hover:opacity-95 transition-all flex items-center justify-center gap-2"
                 >
-                  Create one now (Sign Up)
+                  <Sparkles className="w-4 h-4" />
+                  <span>Send 6-Digit OTP</span>
                 </button>
-              </p>
+              </form>
             ) : (
-              <p>
-                Already have an account?{' '}
+              <form onSubmit={handleVerifyOtp} className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-[#111116]">
+                      Enter 6-Digit Verification Code
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setOtpSent(false)}
+                      className="text-[11px] text-[#b8860b] hover:underline"
+                    >
+                      Change Number
+                    </button>
+                  </div>
+
+                  <input
+                    type="text"
+                    required
+                    placeholder="Enter 6-digit OTP"
+                    value={enteredOtp}
+                    onChange={(e) => setEnteredOtp(e.target.value)}
+                    className="w-full px-4 py-3 border border-[#e8e5dc] rounded-xl text-center text-lg font-mono tracking-widest outline-none focus:border-[#b8860b]"
+                    maxLength={6}
+                    autoFocus
+                  />
+                </div>
+
                 <button
-                  type="button"
-                  onClick={() => { setAuthMode('signin'); setErrorMsg(''); }}
-                  className="font-bold text-[#b8860b] hover:underline"
+                  type="submit"
+                  className="w-full bg-gold-gradient text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider shadow-gold-glow hover:opacity-95 transition-all flex items-center justify-center gap-2"
                 >
-                  Sign In here
+                  <Check className="w-4 h-4" />
+                  <span>Verify OTP & Sign In</span>
                 </button>
-              </p>
+
+                <div className="text-center pt-1">
+                  <button
+                    type="button"
+                    onClick={(e) => handleSendOtp(e)}
+                    className="text-xs text-[#62626e] hover:text-[#111116] flex items-center justify-center gap-1 mx-auto"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Resend OTP Code</span>
+                  </button>
+                </div>
+              </form>
             )}
           </div>
-        </div>
+        )}
 
-        {/* Security Notice */}
-        <div className="text-center text-[10px] sm:text-[11px] text-[#888894] flex items-center justify-center gap-1.5">
-          <Shield className="w-3.5 h-3.5 text-[#b8860b]" />
-          <span>Swaminarayan University 256-bit Gate Credentials Security</span>
-        </div>
+        {/* ===================== FLOW 2: ID & PASSWORD ===================== */}
+        {authMethod === 'credentials' && (
+          <div className="space-y-4">
+            {/* Mode Switch: Sign In vs Sign Up */}
+            <div className="flex rounded-2xl bg-white border border-[#e8e5dc] p-1 shadow-sm">
+              <button
+                type="button"
+                onClick={() => { setAuthMode('signin'); setErrorMsg(''); }}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  authMode === 'signin'
+                    ? 'bg-gold-gradient text-white shadow-gold-glow'
+                    : 'text-[#62626e] hover:text-[#111116]'
+                }`}
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Sign In</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setAuthMode('signup'); setErrorMsg(''); }}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  authMode === 'signup'
+                    ? 'bg-gold-gradient text-white shadow-gold-glow'
+                    : 'text-[#62626e] hover:text-[#111116]'
+                }`}
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Sign Up (Register)</span>
+              </button>
+            </div>
+
+            {/* Role Selectors */}
+            <div className="grid grid-cols-4 gap-1 p-1 bg-white border border-[#e8e5dc] rounded-2xl shadow-sm">
+              {[
+                { id: 'student', label: 'Student', icon: GraduationCap },
+                { id: 'admin', label: 'Admin', icon: Shield },
+                { id: 'faculty', label: 'Faculty', icon: UserCheck },
+                { id: 'guest', label: 'Guest', icon: Users },
+              ].map((r) => {
+                const IconComponent = r.icon;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => handleRoleChange(r.id as RoleType)}
+                    className={`py-2 px-1 text-center rounded-xl text-[11px] font-bold transition-all flex flex-col items-center gap-0.5 ${
+                      role === r.id
+                        ? 'bg-[#111116] text-[#fed65b] shadow-sm'
+                        : 'text-[#62626e] hover:bg-[#f4f3ef]'
+                    }`}
+                  >
+                    <IconComponent className="w-3.5 h-3.5" />
+                    <span>{r.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Form */}
+            <div className="bg-white border border-[#e8e5dc] rounded-3xl p-6 shadow-sm">
+              {authMode === 'signin' ? (
+                <form onSubmit={handleSignIn} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#111116] mb-1">
+                      {role === 'student' ? 'Student Enrollment / Roll No' : role === 'admin' ? 'Admin Credential ID' : 'Login Identifier / Email'}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={loginId}
+                      onChange={(e) => setLoginId(e.target.value)}
+                      placeholder={role === 'admin' ? 'trident1593' : undefined}
+                      className="w-full px-3 py-2 border border-[#e8e5dc] rounded-xl text-sm font-mono outline-none focus:border-[#b8860b]"
+                    />
+                    {role === 'admin' && (
+                      <p className="text-[11px] text-[#888894] mt-1">
+                        Authorized Admin ID: <strong className="text-[#b8860b] font-mono">trident1593</strong>
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#111116] mb-1">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        className="w-full px-3 py-2 border border-[#e8e5dc] rounded-xl text-sm outline-none focus:border-[#b8860b]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-2.5 text-[#888894] hover:text-[#111116]"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-gold-gradient text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider shadow-gold-glow hover:opacity-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>Sign In With Credentials</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleSignUp} className="space-y-3.5 text-xs">
+                  <div>
+                    <label className="block font-semibold text-[#111116] mb-1">Full Legal Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Shivam Tripathi"
+                      value={signupName}
+                      onChange={(e) => setSignupName(e.target.value)}
+                      className="w-full px-3 py-2 border border-[#e8e5dc] rounded-xl text-xs outline-none focus:border-[#b8860b]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-[#111116] mb-1">Enrollment / GR Number *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="SU202204192"
+                      value={signupId}
+                      onChange={(e) => setSignupId(e.target.value)}
+                      className="w-full px-3 py-2 border border-[#e8e5dc] rounded-xl text-xs font-mono outline-none focus:border-[#b8860b]"
+                    />
+                  </div>
+
+                  {role === 'student' && (
+                    <div>
+                      <label className="block font-semibold text-[#111116] mb-1">Academic Program *</label>
+                      <select
+                        value={signupCourse}
+                        onChange={(e) => setSignupCourse(e.target.value)}
+                        className="w-full px-3 py-2 border border-[#e8e5dc] rounded-xl text-xs outline-none bg-white"
+                      >
+                        {AVAILABLE_COURSES.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block font-semibold text-[#111116] mb-1">Password *</label>
+                      <input
+                        type="password"
+                        required
+                        placeholder="Create password"
+                        value={signupPassword}
+                        onChange={(e) => setSignupPassword(e.target.value)}
+                        className="w-full px-3 py-2 border border-[#e8e5dc] rounded-xl text-xs outline-none focus:border-[#b8860b]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-[#111116] mb-1">Confirm Password *</label>
+                      <input
+                        type="password"
+                        required
+                        placeholder="Repeat password"
+                        value={signupConfirmPassword}
+                        onChange={(e) => setSignupConfirmPassword(e.target.value)}
+                        className="w-full px-3 py-2 border border-[#e8e5dc] rounded-xl text-xs outline-none focus:border-[#b8860b]"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-gold-gradient text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider shadow-gold-glow hover:opacity-95 transition-all flex items-center justify-center gap-2 mt-2"
+                  >
+                    <span>Create Account & Sign In</span>
+                    <Check className="w-4 h-4" />
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );

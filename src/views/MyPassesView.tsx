@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { PassItem, UserProfile } from '../data/eventsData';
 import { downloadThanganatPass } from '../utils/passGenerator';
+import { ScanableQrCode } from '../components/ScanableQrCode';
 
 interface MyPassesViewProps {
   passes: PassItem[];
@@ -330,47 +331,13 @@ export const MyPassesView: React.FC<MyPassesViewProps> = ({
               {/* BOTTOM SECTION: QR SCANNER & BARCODE STUB */}
               <div className="p-5 bg-white space-y-4">
                 <div className="flex items-center justify-between gap-4">
-                  {/* High-Resolution SVG QR Code with Scanner Target Frame */}
-                  <div 
-                    onClick={() => setZoomedPass(pass)}
-                    className="relative cursor-pointer p-2 rounded-2xl bg-white border-2 border-[#111116] shadow-sm hover:scale-105 transition-transform group/qr"
-                    title="Click to Zoom QR for Turnstile Scanner"
-                  >
-                    <svg viewBox="0 0 100 100" className="w-20 h-20 fill-[#111116]">
-                      {/* Corner Target 1 */}
-                      <rect x="5" y="5" width="28" height="28" rx="4" fill="none" stroke="#111116" strokeWidth="6" />
-                      <rect x="13" y="13" width="12" height="12" fill="#111116" />
-                      
-                      {/* Corner Target 2 */}
-                      <rect x="67" y="5" width="28" height="28" rx="4" fill="none" stroke="#111116" strokeWidth="6" />
-                      <rect x="75" y="13" width="12" height="12" fill="#111116" />
-                      
-                      {/* Corner Target 3 */}
-                      <rect x="5" y="67" width="28" height="28" rx="4" fill="none" stroke="#111116" strokeWidth="6" />
-                      <rect x="13" y="75" width="12" height="12" fill="#111116" />
-                      
-                      {/* QR Matrix Data Pattern */}
-                      <rect x="42" y="10" width="8" height="8" />
-                      <rect x="42" y="24" width="6" height="6" />
-                      <rect x="54" y="16" width="6" height="6" />
-                      <rect x="10" y="44" width="8" height="8" />
-                      <rect x="24" y="48" width="6" height="6" />
-                      <rect x="36" y="38" width="10" height="10" />
-                      <rect x="50" y="44" width="8" height="8" />
-                      <rect x="64" y="38" width="6" height="6" />
-                      <rect x="78" y="44" width="12" height="8" />
-                      <rect x="42" y="60" width="8" height="8" />
-                      <rect x="56" y="60" width="6" height="6" />
-                      <rect x="68" y="58" width="8" height="8" />
-                      <rect x="80" y="66" width="10" height="10" />
-                      <rect x="42" y="76" width="10" height="10" />
-                      <rect x="58" y="78" width="8" height="8" />
-                      <rect x="72" y="80" width="12" height="8" />
-                    </svg>
-
-                    <div className="absolute inset-0 bg-[#fed65b]/20 opacity-0 group-hover/qr:opacity-100 transition-opacity rounded-xl flex items-center justify-center text-[9px] font-bold text-[#745c00]">
-                      Zoom
-                    </div>
+                  {/* High-Resolution Real Scanable QR Code */}
+                  <div className="relative group/qr">
+                    <ScanableQrCode
+                      payload={`https://eventhive.in/verify?passId=${pass.passId}&student=${encodeURIComponent(userProfile.name)}&roll=${encodeURIComponent(userProfile.rollNumber)}&event=${encodeURIComponent(pass.eventTitle)}&status=VALID`}
+                      size={80}
+                      allowInspect={true}
+                    />
                   </div>
 
                   {/* Pass Metadata & Barcode */}
@@ -514,34 +481,13 @@ export const MyPassesView: React.FC<MyPassesViewProps> = ({
               </p>
             </div>
 
-            {/* High-Contrast Large QR */}
-            <div className="p-4 bg-white border-4 border-[#111116] rounded-2xl mx-auto inline-block shadow-lg">
-              <svg viewBox="0 0 100 100" className="w-48 h-48 sm:w-56 sm:h-56 fill-[#111116]">
-                <rect x="5" y="5" width="28" height="28" rx="4" fill="none" stroke="#111116" strokeWidth="6" />
-                <rect x="13" y="13" width="12" height="12" fill="#111116" />
-                <rect x="67" y="5" width="28" height="28" rx="4" fill="none" stroke="#111116" strokeWidth="6" />
-                <rect x="75" y="13" width="12" height="12" fill="#111116" />
-                <rect x="5" y="67" width="28" height="28" rx="4" fill="none" stroke="#111116" strokeWidth="6" />
-                <rect x="13" y="75" width="12" height="12" fill="#111116" />
-                
-                {/* Data Points */}
-                <rect x="42" y="10" width="8" height="8" />
-                <rect x="42" y="24" width="6" height="6" />
-                <rect x="54" y="16" width="6" height="6" />
-                <rect x="10" y="44" width="8" height="8" />
-                <rect x="24" y="48" width="6" height="6" />
-                <rect x="36" y="38" width="10" height="10" />
-                <rect x="50" y="44" width="8" height="8" />
-                <rect x="64" y="38" width="6" height="6" />
-                <rect x="78" y="44" width="12" height="8" />
-                <rect x="42" y="60" width="8" height="8" />
-                <rect x="56" y="60" width="6" height="6" />
-                <rect x="68" y="58" width="8" height="8" />
-                <rect x="80" y="66" width="10" height="10" />
-                <rect x="42" y="76" width="10" height="10" />
-                <rect x="58" y="78" width="8" height="8" />
-                <rect x="72" y="80" width="12" height="8" />
-              </svg>
+            {/* High-Contrast Large Real Scanable QR */}
+            <div className="p-3 bg-white border-2 border-[#111116] rounded-2xl mx-auto inline-block shadow-lg">
+              <ScanableQrCode
+                payload={`https://eventhive.in/verify?passId=${zoomedPass.passId}&student=${encodeURIComponent(userProfile.name)}&roll=${encodeURIComponent(userProfile.rollNumber)}&event=${encodeURIComponent(zoomedPass.eventTitle)}&status=VALID`}
+                size={180}
+                allowInspect={false}
+              />
             </div>
 
             {/* Holder Confirmation */}

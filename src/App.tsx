@@ -7,8 +7,9 @@ import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { PassClaimModal } from './components/PassClaimModal';
+import { UpiPaymentModal } from './components/UpiPaymentModal';
 import { FeedbackModal } from './components/FeedbackModal';
-import { SettingsModal, SettingsPreferences } from './components/SettingsModal';
+import { SettingsModal } from './components/SettingsModal';
 import { HomeView } from './views/HomeView';
 import { ExploreView } from './views/ExploreView';
 import { EventDetailsView } from './views/EventDetailsView';
@@ -16,19 +17,74 @@ import { MyPassesView } from './views/MyPassesView';
 import { ProfileView } from './views/ProfileView';
 import { LoginView } from './views/LoginView';
 import { WishlistView } from './views/WishlistView';
+import { AdminPortalView } from './views/AdminPortalView';
 import { 
   CAMPUS_EVENTS, INITIAL_PASSES, INITIAL_USER_PROFILE, DEFAULT_ACCOUNTS,
   EventItem, PassItem, UserProfile, RegisteredAccount 
 } from './data/eventsData';
+import { DatabaseService, DetailedEventItem } from './data/dbStore';
 import { Check, Sparkles } from 'lucide-react';
 
 export default function App() {
-  const [activeView, setActiveView] = useState<'home' | 'explore' | 'details' | 'passes' | 'profile' | 'login' | 'wishlist'>('home');
-  const [userProfile, setUserProfile] = useState<UserProfile>(INITIAL_USER_PROFILE);
-  const [passes, setPasses] = useState<PassItem[]>(INITIAL_PASSES);
+  const [activeView, setActiveView] = useState<'home' | 'explore' | 'details' | 'passes' | 'profile' | 'login' | 'wishlist' | 'admin'>('home');
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
+    try {
+      const stored = localStorage.getItem('eventhive_user_profile');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && typeof parsed === 'object') {
+          if (parsed.name === 'Dev Patel' || !parsed.name) {
+            return {
+              ...parsed,
+              name: 'Shivam Tripathi',
+              email: 'shivam.tripathi@swaminarayanuniversity.ac.in',
+            };
+          }
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return INITIAL_USER_PROFILE;
+  });
+
+  // Events from database store
+  const [campusEvents, setCampusEvents] = useState<EventItem[]>(() => DatabaseService.getEvents());
+
+  useEffect(() => {
+    const handleDbUpdate = () => {
+      setCampusEvents(DatabaseService.getEvents());
+    };
+    window.addEventListener('eventhive_db_updated', handleDbUpdate);
+    return () => window.removeEventListener('eventhive_db_updated', handleDbUpdate);
+  }, []);
+
+  const [passes, setPasses] = useState<PassItem[]>(() => {
+    try {
+      const stored = localStorage.getItem('eventhive_user_passes');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return INITIAL_PASSES;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('eventhive_user_passes', JSON.stringify(passes));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [passes]);
+
   const [wishlistIds, setWishlistIds] = useState<string[]>(['thanganat-5', 'su-mun-2025']);
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(CAMPUS_EVENTS[0]);
   const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
+  const [isUpiPaymentModalOpen, setIsUpiPaymentModalOpen] = useState(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [appToast, setAppToast] = useState<string | null>(null);
@@ -68,7 +124,28 @@ export default function App() {
     try {
       const stored = localStorage.getItem('eventhive_registered_accounts');
       if (stored) {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((acc: RegisteredAccount) => {
+            if (acc.role === 'admin' || acc.id === 'acc-admin') {
+              return {
+                ...acc,
+                name: 'University Admin',
+                loginId: 'trident1593',
+                password: 'trident1593',
+                role: 'admin',
+              };
+            }
+            if (acc.name === 'Dev Patel') {
+              return {
+                ...acc,
+                name: 'Shivam Tripathi',
+                email: 'shivam.tripathi@swaminarayanuniversity.ac.in',
+              };
+            }
+            return acc;
+          });
+        }
       }
     } catch (e) {
       console.error(e);
@@ -94,7 +171,7 @@ export default function App() {
     setTimeout(() => setAppToast(null), 3500);
   };
 
-  const handleNavigate = (view: 'home' | 'explore' | 'details' | 'passes' | 'profile' | 'login' | 'wishlist') => {
+  const handleNavigate = (view: 'home' | 'explore' | 'details' | 'passes' | 'profile' | 'login' | 'wishlist' | 'admin') => {
     setActiveView(view);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -108,8 +185,12 @@ export default function App() {
     setIsClaimModalOpen(true);
   };
 
+  const handleOpenUpiPayment = (event: EventItem) => {
+    setSelectedEvent(event);
+    setIsUpiPaymentModalOpen(true);
+  };
+
   const handlePassClaimed = (newPass: PassItem) => {
-    // Stamp the current user's profile on newly claimed pass
     const customizedPass: PassItem = {
       ...newPass,
       studentName: userProfile.name,
@@ -122,16 +203,23 @@ export default function App() {
 
   const handleToggleWishlist = (eventId: string) => {
     setWishlistIds((prev) => {
-      if (prev.includes(eventId)) {
-        return prev.filter((id) => id !== eventId);
-      } else {
-        return [...prev, eventId];
-      }
+      const isAlready = prev.includes(eventId);
+      const next = isAlready ? prev.filter((id) => id !== eventId) : [...prev, eventId];
+
+      DatabaseService.logActivity({
+        userId: userProfile.rollNumber,
+        type: isAlready ? 'wishlist_remove' : 'wishlist_add',
+        title: isAlready ? 'Removed from Wishlist' : 'Saved to Wishlist',
+        description: `${isAlready ? 'Removed' : 'Added'} event to your university wishlist.`,
+        timestamp: 'Just now',
+        eventId,
+      });
+
+      return next;
     });
   };
 
   const handleRefreshPasses = () => {
-    // Re-sync passes with current user credentials
     setPasses((prev) => 
       prev.map((p) => ({
         ...p,
@@ -145,7 +233,11 @@ export default function App() {
 
   const handleUpdateProfile = (updated: UserProfile) => {
     setUserProfile(updated);
-    // Dynamically update all active passes with the new account name & ID!
+    try {
+      localStorage.setItem('eventhive_user_profile', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
     setPasses((prev) =>
       prev.map((pass) => ({
         ...pass,
@@ -154,16 +246,31 @@ export default function App() {
         studentCourse: updated.course,
       }))
     );
-    showToast(`Profile updated! All 3 event passes now print "${updated.name}" (${updated.rollNumber}).`);
+    showToast(`Profile updated! Passes reflect "${updated.name}" (${updated.rollNumber}).`);
   };
 
   const handleLogout = () => {
-    setUserProfile((prev) => ({
-      ...prev,
+    const updated = {
+      ...userProfile,
       isLoggedIn: false,
-    }));
+    };
+    setUserProfile(updated);
+    try {
+      localStorage.setItem('eventhive_user_profile', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+
+    DatabaseService.logActivity({
+      userId: userProfile.rollNumber,
+      type: 'logout',
+      title: 'Logged Out',
+      description: 'Terminated active CAS session.',
+      timestamp: 'Just now',
+    });
+
     showToast('Logged out of Swaminarayan University CAS session.');
-    if (activeView === 'profile') {
+    if (activeView === 'profile' || activeView === 'admin') {
       setActiveView('home');
     }
   };
@@ -175,8 +282,12 @@ export default function App() {
       isLoggedIn: true,
     };
     setUserProfile(updated);
+    try {
+      localStorage.setItem('eventhive_user_profile', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
     
-    // Update passes with logged in user details
     setPasses((prev) =>
       prev.map((pass) => ({
         ...pass,
@@ -191,7 +302,7 @@ export default function App() {
   };
 
   // Wishlist event objects
-  const wishlistEvents = CAMPUS_EVENTS.filter((e) => wishlistIds.includes(e.id));
+  const wishlistEvents = campusEvents.filter((e) => wishlistIds.includes(e.id));
 
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'dark bg-[#0b0b10] text-[#f5f5f8]' : 'bg-[#fbfbf9] text-[#111116]'} flex flex-col font-sans selection:bg-[#fed65b]/40 transition-colors duration-200`}>
@@ -243,8 +354,10 @@ export default function App() {
           <EventDetailsView
             onNavigate={handleNavigate}
             onOpenClaimModal={handleOpenClaimModal}
+            onOpenUpiPayment={handleOpenUpiPayment}
             wishlistIds={wishlistIds}
             onToggleWishlist={handleToggleWishlist}
+            userProfile={userProfile}
           />
         )}
 
@@ -283,6 +396,17 @@ export default function App() {
             onNavigate={handleNavigate}
           />
         )}
+
+        {activeView === 'admin' && (
+          <AdminPortalView
+            userProfile={userProfile}
+            onNavigate={handleNavigate}
+            onSelectEventForPreview={(evt) => {
+              setSelectedEvent(evt);
+              setActiveView('details');
+            }}
+          />
+        )}
       </div>
 
       {/* Interactive Pass Claiming Modal */}
@@ -291,6 +415,17 @@ export default function App() {
         onClose={() => setIsClaimModalOpen(false)}
         event={selectedEvent}
         onPassClaimed={handlePassClaimed}
+        onViewPasses={() => handleNavigate('passes')}
+        userProfile={userProfile}
+      />
+
+      {/* Interactive UPI Payment Modal (Shivam tto.shivam.dm12@oksbi) */}
+      <UpiPaymentModal
+        isOpen={isUpiPaymentModalOpen}
+        onClose={() => setIsUpiPaymentModalOpen(false)}
+        event={selectedEvent}
+        userProfile={userProfile}
+        onPassGenerated={handlePassClaimed}
         onViewPasses={() => handleNavigate('passes')}
       />
 
@@ -308,7 +443,7 @@ export default function App() {
       <SettingsModal
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
-        onSavePreferences={(prefs) => {
+        onSavePreferences={() => {
           showToast('Preferences updated for SMS & NFC turnstiles.');
         }}
       />
