@@ -104,9 +104,11 @@ export default function App() {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
       document.documentElement.setAttribute('data-theme', 'dark');
+      document.body.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
       document.documentElement.setAttribute('data-theme', 'light');
+      document.body.classList.remove('dark');
     }
     try {
       localStorage.setItem('eventhive_theme', theme);
@@ -114,6 +116,17 @@ export default function App() {
       console.error(e);
     }
   }, [theme]);
+
+  // Sync theme changes across tabs or window storage events
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'eventhive_theme' && (e.newValue === 'light' || e.newValue === 'dark')) {
+        setTheme(e.newValue);
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   const handleToggleTheme = () => {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
@@ -298,7 +311,7 @@ export default function App() {
     );
 
     showToast(`Welcome back, ${updated.name}!`);
-    setActiveView('passes');
+    setActiveView('home');
   };
 
   // Wishlist event objects
@@ -352,6 +365,7 @@ export default function App() {
 
         {activeView === 'details' && (
           <EventDetailsView
+            event={selectedEvent}
             onNavigate={handleNavigate}
             onOpenClaimModal={handleOpenClaimModal}
             onOpenUpiPayment={handleOpenUpiPayment}
@@ -437,6 +451,7 @@ export default function App() {
           showToast(`Feedback received for ${f.category}! Thank you.`);
         }}
         userName={userProfile.name}
+        userRoll={userProfile.rollNumber}
       />
 
       {/* Interactive Settings Modal */}

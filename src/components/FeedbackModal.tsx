@@ -8,6 +8,7 @@ interface FeedbackModalProps {
   onClose: () => void;
   onSubmitFeedback: (feedback: { rating: number; category: string; comment: string }) => void;
   userName: string;
+  userRoll?: string;
 }
 
 export const FeedbackModal: React.FC<FeedbackModalProps> = ({
@@ -15,6 +16,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
   onClose,
   onSubmitFeedback,
   userName,
+  userRoll,
 }) => {
   const [rating, setRating] = useState<number>(5);
   const [category, setCategory] = useState<string>('Events & Activities');
@@ -27,12 +29,14 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
     e.preventDefault();
     onSubmitFeedback({ rating, category, comment });
 
+    const activeRoll = userRoll || 'SU202204192';
+
     // Save to database
     DatabaseService.addFeedback({
       eventId: 'campus-general',
       eventTitle: 'Campus Gathering & Logistics',
       studentName: userName || 'Shivam Tripathi',
-      studentRoll: 'SU202204192',
+      studentRoll: activeRoll,
       rating,
       category,
       message: comment.trim() || 'Great campus event experience!',
@@ -40,7 +44,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
 
     // Log user activity
     DatabaseService.logActivity({
-      userId: 'SU202204192',
+      userId: activeRoll,
       type: 'feedback_submitted',
       title: 'Feedback Submitted',
       description: `Rated ${rating} Stars for ${category}.`,

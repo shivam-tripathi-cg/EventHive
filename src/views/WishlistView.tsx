@@ -77,7 +77,13 @@ export const WishlistView: React.FC<WishlistViewProps> = ({
                 className="bg-white border border-[#e8e5dc] rounded-3xl overflow-hidden shadow-card-elevated hover:shadow-card-3d hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group"
               >
                 {/* Event Card Header with Gradient */}
-                <div className={`h-36 bg-gradient-to-br ${evt.gradient} p-5 flex flex-col justify-between relative`}>
+                <div className={`h-36 ${evt.bannerImage ? 'relative' : `bg-gradient-to-br ${evt.gradient}`} p-5 flex flex-col justify-between relative overflow-hidden`}>
+                  {evt.bannerImage && (
+                    <>
+                      <img src={evt.bannerImage} alt={evt.title} className="absolute inset-0 w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/30" />
+                    </>
+                  )}
                   <div className="flex items-center justify-between z-10">
                     <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md text-[#fed65b] border border-white/20">
                       {evt.categoryLabel}

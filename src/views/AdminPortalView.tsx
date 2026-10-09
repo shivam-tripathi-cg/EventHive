@@ -63,6 +63,8 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   const [formIsFree, setFormIsFree] = useState(true);
   const [formTicketPrice, setFormTicketPrice] = useState(0);
   const [formPassTheme, setFormPassTheme] = useState('gold');
+  const [formBannerImage, setFormBannerImage] = useState('');
+  const [formOrganizer, setFormOrganizer] = useState('Swaminarayan University Cultural Directorate');
   const [formRules, setFormRules] = useState<string[]>([
     'Valid university credentials mandatory at entrance.',
     'Follow code of conduct inside the campus premises.',
@@ -151,6 +153,8 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     setFormIsFree(true);
     setFormTicketPrice(0);
     setFormPassTheme('gold');
+    setFormBannerImage('');
+    setFormOrganizer('Swaminarayan University Directorate');
     setFormRules([
       'Valid student or faculty ID required at Gate turnstile.',
       'Maintain campus decorum throughout the event.',
@@ -179,6 +183,8 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     setFormIsFree(evt.isFree ?? true);
     setFormTicketPrice(evt.ticketPrice || 0);
     setFormPassTheme(evt.passColorTheme || 'gold');
+    setFormBannerImage(evt.bannerImage || '');
+    setFormOrganizer(evt.organizer || 'Swaminarayan University Directorate');
     setFormRules(evt.rules || ['Standard university rules apply.']);
     setFormPerks(evt.perks || ['Official entry pass provided.']);
     setIsEventModalOpen(true);
@@ -222,7 +228,8 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       rules: formRules,
       perks: formPerks,
       status: 'active',
-      organizer: 'Swaminarayan University Directorate',
+      organizer: formOrganizer.trim() || 'Swaminarayan University Directorate',
+      bannerImage: formBannerImage.trim(),
     };
 
     if (editingEventId) {
@@ -242,6 +249,47 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       showToast(`Event "${title}" removed.`);
     }
   };
+
+  const handleAddRule = () => {
+    if (newRuleInput.trim()) {
+      setFormRules([...formRules, newRuleInput.trim()]);
+      setNewRuleInput('');
+    }
+  };
+
+  const handleRemoveRule = (index: number) => {
+    setFormRules(formRules.filter((_, i) => i !== index));
+  };
+
+  const handleAddPerk = () => {
+    if (newPerkInput.trim()) {
+      setFormPerks([...formPerks, newPerkInput.trim()]);
+      setNewPerkInput('');
+    }
+  };
+
+  const handleRemovePerk = (index: number) => {
+    setFormPerks(formPerks.filter((_, i) => i !== index));
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormBannerImage(reader.result as string);
+        showToast('Event banner photo uploaded!');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const PRESET_BANNERS = [
+    { label: 'Garba Night Gala', url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop&q=80' },
+    { label: 'Tech Hackathon / AI', url: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80' },
+    { label: 'Sports Turf & Meet', url: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=80' },
+    { label: 'Academic Convocation', url: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=80' },
+  ];
 
   // Free Pass Issuance Handler
   const handleOpenIssuePass = (defaultEventId?: string) => {
@@ -486,6 +534,71 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       {/* Main Admin Content Container */}
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         
+        {/* Admin Capabilities & Control Center Guide Banner */}
+        <div className="bg-white border border-[#e8e5dc] rounded-3xl p-5 sm:p-6 mb-8 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#f4f3ef] pb-4 mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-2xl bg-amber-50 border border-[#d4af37]/40 flex items-center justify-center text-[#b8860b]">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-serif font-bold text-base sm:text-lg text-[#111116]">
+                  Admin Capabilities & Power Center (एडमिन क्या-क्या कर सकते हैं)
+                </h3>
+                <p className="text-xs text-[#62626e]">
+                  Swaminarayan University EventHive Complete Operational Capabilities
+                </p>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-[10px] font-bold text-[#15803d] border border-emerald-200">
+              <Check className="w-3.5 h-3.5" />
+              Active Passkey: trident1593
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            <div className="p-3.5 rounded-2xl bg-[#fbfbf9] border border-[#e8e5dc] space-y-1.5">
+              <div className="flex items-center gap-2 font-bold text-[#111116]">
+                <Calendar className="w-4 h-4 text-[#b8860b]" />
+                <span>1. Event Upload & Editor</span>
+              </div>
+              <p className="text-[11px] text-[#62626e] leading-relaxed">
+                Naye event upload karein, photo/banner lagayein, category, date/time, venue, rules, perks, aur Free vs Paid UPI ticket customize karein.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-[#fbfbf9] border border-[#e8e5dc] space-y-1.5">
+              <div className="flex items-center gap-2 font-bold text-[#111116]">
+                <Ticket className="w-4 h-4 text-[#b8860b]" />
+                <span>2. Grant Free Passes</span>
+              </div>
+              <p className="text-[11px] text-[#62626e] leading-relaxed">
+                Kisi bhi scholar/student ko unke Roll No par complimentary VIP free pass issue karein, instant unique QR code generate ho jata hai.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-[#fbfbf9] border border-[#e8e5dc] space-y-1.5">
+              <div className="flex items-center gap-2 font-bold text-[#111116]">
+                <QrCode className="w-4 h-4 text-[#b8860b]" />
+                <span>3. Gate QR Turnstile Scanner</span>
+              </div>
+              <p className="text-[11px] text-[#62626e] leading-relaxed">
+                Campus gates par students ke QR pass ya Roll No ko lookup karein, instant authentic verification aur check-in status toggle karein.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-[#fbfbf9] border border-[#e8e5dc] space-y-1.5">
+              <div className="flex items-center gap-2 font-bold text-[#111116]">
+                <Users className="w-4 h-4 text-[#b8860b]" />
+                <span>4. Attendees & Feedback</span>
+              </div>
+              <p className="text-[11px] text-[#62626e] leading-relaxed">
+                Live attendee roster dekhein (kisne kab pass liya, payment type) aur students dwara diye gaye feedback/reviews review karein.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* ===================== TAB 1: EVENTS MANAGER ===================== */}
         {activeTab === 'events' && (
           <div className="space-y-6">
@@ -536,8 +649,14 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                 >
                   {/* Top Badge & Header */}
                   <div>
-                    <div className={`p-4 bg-gradient-to-r ${evt.gradient} text-white relative`}>
-                      <div className="flex items-center justify-between">
+                    <div className={`p-4 ${evt.bannerImage ? 'relative min-h-[140px]' : `bg-gradient-to-r ${evt.gradient}`} text-white relative overflow-hidden flex flex-col justify-between`}>
+                      {evt.bannerImage && (
+                        <>
+                          <img src={evt.bannerImage} alt={evt.title} className="absolute inset-0 w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-black/30" />
+                        </>
+                      )}
+                      <div className="relative z-10 flex items-center justify-between">
                         <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-sm">
                           {evt.categoryLabel}
                         </span>
@@ -545,12 +664,14 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                           {evt.isFree ? 'Free Pass' : `₹${evt.ticketPrice || 199}`}
                         </span>
                       </div>
-                      <h3 className="font-serif font-bold text-lg text-white mt-2 leading-snug">
-                        {evt.title}
-                      </h3>
-                      {evt.subtitle && (
-                        <p className="text-xs text-amber-200 mt-0.5 line-clamp-1">{evt.subtitle}</p>
-                      )}
+                      <div className="relative z-10 mt-3">
+                        <h3 className="font-serif font-bold text-lg text-white leading-snug drop-shadow-sm">
+                          {evt.title}
+                        </h3>
+                        {evt.subtitle && (
+                          <p className="text-xs text-amber-200 mt-0.5 line-clamp-1 drop-shadow-sm">{evt.subtitle}</p>
+                        )}
+                      </div>
                     </div>
 
                     {/* Details Body */}
@@ -1183,6 +1304,187 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                       <span className="text-[10px] font-semibold">{thm.label.split(' ')[0]}</span>
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Event Visual Photo / Banner (Visible to users) */}
+              <div className="p-4 bg-[#fbfbf9] rounded-2xl border border-[#e8e5dc] space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block font-bold text-[#111116]">
+                      Event Cover Photo / Visual Banner *
+                    </label>
+                    <span className="text-[11px] text-[#62626e]">
+                      Upload an image file from device, paste a URL, or choose a campus preset.
+                    </span>
+                  </div>
+                  {formBannerImage && (
+                    <button
+                      type="button"
+                      onClick={() => setFormBannerImage('')}
+                      className="text-[11px] text-rose-600 font-semibold hover:underline"
+                    >
+                      Remove Photo
+                    </button>
+                  )}
+                </div>
+
+                {/* Banner Preview */}
+                {formBannerImage && (
+                  <div className="relative h-32 rounded-xl overflow-hidden border border-[#d4af37]/40 shadow-sm">
+                    <img src={formBannerImage} alt="Event Preview" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
+                    <span className="absolute bottom-2 left-3 text-white text-[11px] font-bold">
+                      ✓ Photo Active — Visible on Campus Gateways
+                    </span>
+                  </div>
+                )}
+
+                {/* File Upload & URL Input */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <span className="block text-[11px] font-semibold text-[#111116] mb-1">
+                      Option A: Upload From Computer / Phone
+                    </span>
+                    <label className="cursor-pointer flex items-center justify-center gap-2 px-3 py-2 border-2 border-dashed border-[#d4af37]/60 hover:border-[#b8860b] bg-white rounded-xl text-xs font-semibold text-[#7b5800] transition-colors">
+                      <Upload className="w-4 h-4" />
+                      <span>Choose Image File</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+
+                  <div>
+                    <span className="block text-[11px] font-semibold text-[#111116] mb-1">
+                      Option B: Image Web URL
+                    </span>
+                    <input
+                      type="url"
+                      placeholder="https://images.unsplash.com/..."
+                      value={formBannerImage}
+                      onChange={(e) => setFormBannerImage(e.target.value)}
+                      className="w-full px-3 py-2 border border-[#e8e5dc] rounded-xl outline-none focus:border-[#b8860b] text-xs bg-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Preset University Event Banners */}
+                <div>
+                  <span className="block text-[11px] font-semibold text-[#62626e] mb-1.5">
+                    Or select a university banner preset:
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                    {PRESET_BANNERS.map((pre, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setFormBannerImage(pre.url)}
+                        className={`text-[10px] font-semibold px-2 py-1.5 rounded-lg border text-center transition-all truncate ${
+                          formBannerImage === pre.url
+                            ? 'bg-[#111116] text-[#fed65b] border-[#111116]'
+                            : 'bg-white text-[#2d2d34] border-[#e8e5dc] hover:border-[#b8860b]'
+                        }`}
+                      >
+                        {pre.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Organizer / Directorate */}
+              <div>
+                <label className="block font-semibold text-[#111116] mb-1">
+                  Organizing Body / Directorate *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Swaminarayan University Cultural Directorate, Dept of CSE"
+                  value={formOrganizer}
+                  onChange={(e) => setFormOrganizer(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#e8e5dc] rounded-xl outline-none focus:border-[#b8860b]"
+                />
+              </div>
+
+              {/* Dynamic Rules Builder */}
+              <div className="space-y-2">
+                <label className="block font-semibold text-[#111116]">
+                  Event Rules & Guidelines ({formRules.length})
+                </label>
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                  {formRules.map((r, ri) => (
+                    <div key={ri} className="flex items-center justify-between p-2 rounded-xl bg-[#fbfbf9] border border-[#e8e5dc] text-xs">
+                      <span className="text-[#2d2d34]">• {r}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveRule(ri)}
+                        className="text-rose-500 hover:text-rose-700 font-bold ml-2"
+                        title="Remove"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Add specific rule (e.g. Traditional dress mandatory, gates close at 8 PM)"
+                    value={newRuleInput}
+                    onChange={(e) => setNewRuleInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddRule(); }}}
+                    className="flex-1 px-3 py-2 border border-[#e8e5dc] rounded-xl outline-none focus:border-[#b8860b] text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddRule}
+                    className="px-3 py-2 rounded-xl bg-[#f4f3ef] hover:bg-[#e8e5dc] text-[#111116] font-bold text-xs"
+                  >
+                    + Add Rule
+                  </button>
+                </div>
+              </div>
+
+              {/* Dynamic Perks Builder */}
+              <div className="space-y-2">
+                <label className="block font-semibold text-[#111116]">
+                  Perks & Privileges ({formPerks.length})
+                </label>
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                  {formPerks.map((p, pi) => (
+                    <div key={pi} className="flex items-center justify-between p-2 rounded-xl bg-[#fbfbf9] border border-[#e8e5dc] text-xs">
+                      <span className="text-[#2d2d34]">✓ {p}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePerk(pi)}
+                        className="text-rose-500 hover:text-rose-700 font-bold ml-2"
+                        title="Remove"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Add attendee perk (e.g. Verified digital certificate, Dinner box voucher)"
+                    value={newPerkInput}
+                    onChange={(e) => setNewPerkInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddPerk(); }}}
+                    className="flex-1 px-3 py-2 border border-[#e8e5dc] rounded-xl outline-none focus:border-[#b8860b] text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddPerk}
+                    className="px-3 py-2 rounded-xl bg-[#f4f3ef] hover:bg-[#e8e5dc] text-[#111116] font-bold text-xs"
+                  >
+                    + Add Perk
+                  </button>
                 </div>
               </div>
 

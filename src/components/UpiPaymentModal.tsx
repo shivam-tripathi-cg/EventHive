@@ -36,12 +36,32 @@ export const UpiPaymentModal: React.FC<UpiPaymentModalProps> = ({
   const payeeName = 'Shivam';
   const amount = event?.id === 'thanganat-5' ? 199 : 99;
 
+  const [countdown, setCountdown] = useState<number>(5);
+
   useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+    let interval: NodeJS.Timeout | null = null;
+
     if (isOpen) {
       setPaymentState('idle');
       setVerificationStep('');
       setCreatedPass(null);
+      setCountdown(5);
+
+      interval = setInterval(() => {
+        setCountdown((prev) => (prev > 1 ? prev - 1 : 1));
+      }, 1000);
+
+      // Auto-trigger simulated verification after 5 seconds
+      timer = setTimeout(() => {
+        handleSimulatePayment();
+      }, 5000);
     }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      if (interval) clearInterval(interval);
+    };
   }, [isOpen]);
 
   if (!isOpen || !event) return null;
@@ -129,6 +149,13 @@ export const UpiPaymentModal: React.FC<UpiPaymentModalProps> = ({
       setCreatedPass(newPass);
       onPassGenerated(newPass);
       setPaymentState('success');
+
+      // Auto-download official pass PDF as requested
+      try {
+        downloadThanganatPass(userProfile.name, userProfile.rollNumber, userProfile.course);
+      } catch (err) {
+        console.error('Auto download pass error:', err);
+      }
 
       // Trigger celebratory confetti
       try {
@@ -246,9 +273,14 @@ export const UpiPaymentModal: React.FC<UpiPaymentModalProps> = ({
 
             {/* Note & Action */}
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-xs text-[#15803d] bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
-                <ShieldCheck className="w-4 h-4 shrink-0" />
-                <span>Simulated instant bank verification active. Click below to verify and generate pass.</span>
+              <div className="flex items-center justify-between text-xs text-[#15803d] bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 shrink-0 text-[#15803d]" />
+                  <span>Auto-detecting UPI payment • Verifying in {countdown}s...</span>
+                </div>
+                <span className="text-[10px] font-mono font-bold bg-emerald-200/60 px-2 py-0.5 rounded-full text-emerald-800">
+                  {countdown}s
+                </span>
               </div>
 
               <button

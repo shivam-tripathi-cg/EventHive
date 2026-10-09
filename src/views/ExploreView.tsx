@@ -292,7 +292,13 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
               >
                 <div>
                   {/* Top Graphic Strip */}
-                  <div className={`h-40 bg-gradient-to-br ${evt.gradient} p-4 flex flex-col justify-between text-white relative`}>
+                  <div className={`h-40 ${evt.bannerImage ? 'relative' : `bg-gradient-to-br ${evt.gradient}`} p-4 flex flex-col justify-between text-white relative overflow-hidden`}>
+                    {evt.bannerImage && (
+                      <>
+                        <img src={evt.bannerImage} alt={evt.title} className="absolute inset-0 w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/30" />
+                      </>
+                    )}
                     <div className="flex justify-between items-start z-10">
                       <div className="bg-white text-[#111116] px-2.5 py-1.5 rounded-xl text-center font-bold text-xs shadow-sm">
                         <span className="block text-[10px] uppercase tracking-wider text-[#b8860b] leading-tight">

@@ -242,7 +242,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
               >
                 <div>
                   {/* Visual Header */}
-                  <div className={`h-36 bg-gradient-to-br ${evt.gradient} p-4 flex flex-col justify-between text-white relative`}>
+                  <div className={`h-36 ${evt.bannerImage ? 'relative' : `bg-gradient-to-br ${evt.gradient}`} p-4 flex flex-col justify-between text-white relative overflow-hidden`}>
+                    {evt.bannerImage && (
+                      <>
+                        <img src={evt.bannerImage} alt={evt.title} className="absolute inset-0 w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/30" />
+                      </>
+                    )}
                     <div className="flex justify-between items-start z-10">
                       <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-sm border border-white/20">
                         {evt.categoryLabel}

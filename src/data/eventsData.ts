@@ -14,6 +14,7 @@ export interface EventItem {
   badge?: string;
   gradient: string;
   iconName: string;
+  bannerImage?: string;
 }
 
 export interface PassItem {

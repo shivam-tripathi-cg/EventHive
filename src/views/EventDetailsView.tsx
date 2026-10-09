@@ -7,6 +7,7 @@ import {
 import { EventItem, UserProfile } from '../data/eventsData';
 
 interface EventDetailsViewProps {
+  event?: EventItem | null;
   onNavigate: (view: 'home' | 'explore' | 'details' | 'passes' | 'profile' | 'login' | 'wishlist') => void;
   onOpenClaimModal: (event: EventItem) => void;
   onOpenUpiPayment?: (event: EventItem) => void;
@@ -16,6 +17,7 @@ interface EventDetailsViewProps {
 }
 
 export const EventDetailsView: React.FC<EventDetailsViewProps> = ({
+  event,
   onNavigate,
   onOpenClaimModal,
   onOpenUpiPayment,
@@ -23,14 +25,6 @@ export const EventDetailsView: React.FC<EventDetailsViewProps> = ({
   onToggleWishlist,
   userProfile,
 }) => {
-  const isBookmarked = wishlistIds.includes('thanganat-5');
-  const [activeSection, setActiveSection] = useState('about');
-  const [starRating, setStarRating] = useState(5);
-  const [feedbackText, setFeedbackText] = useState('');
-  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
-  const [contestModal, setContestModal] = useState<string | null>(null);
-  const [contestSuccess, setContestSuccess] = useState(false);
-
   const mockEvent: EventItem = {
     id: 'thanganat-5',
     title: 'Thanganat 5.0 — Live Garba Celebration',
@@ -45,6 +39,15 @@ export const EventDetailsView: React.FC<EventDetailsViewProps> = ({
     gradient: 'from-amber-700 to-amber-950',
     iconName: 'Sparkles',
   };
+
+  const activeEvent = event || mockEvent;
+  const isBookmarked = wishlistIds.includes(activeEvent.id);
+  const [activeSection, setActiveSection] = useState('about');
+  const [starRating, setStarRating] = useState(5);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [contestModal, setContestModal] = useState<string | null>(null);
+  const [contestSuccess, setContestSuccess] = useState(false);
 
   const handleFeedbackSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,24 +68,37 @@ export const EventDetailsView: React.FC<EventDetailsViewProps> = ({
           <span>/</span>
           <button onClick={() => onNavigate('explore')} className="hover:text-[#b8860b]">Explore</button>
           <span>/</span>
-          <span className="text-[#111116] font-semibold">Thanganat 5.0</span>
+          <span className="text-[#111116] font-semibold">{activeEvent.title}</span>
         </nav>
+
+        {/* Photo Banner if available */}
+        {activeEvent.bannerImage && (
+          <div className="relative h-56 sm:h-72 md:h-80 w-full rounded-3xl overflow-hidden mb-6 border border-[#e8e5dc] shadow-card-elevated">
+            <img src={activeEvent.bannerImage} alt={activeEvent.title} className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
+            <div className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 text-white">
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/20 text-[#fed65b]">
+                {activeEvent.categoryLabel}
+              </span>
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-[#d4af37]/30 text-[10px] font-bold uppercase tracking-wider text-[#b8860b]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#b8860b]"></span>
-              Cultural Mega Gala • Navratri 2025
+              {activeEvent.categoryLabel} • Academic Year 2024-25
             </span>
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-[10px] font-bold text-[#15803d] border border-emerald-200">
               <ShieldCheck className="w-3.5 h-3.5" />
-              Accredited Event
+              Accredited Campus Event
             </span>
           </div>
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => onToggleWishlist?.('thanganat-5')}
+              onClick={() => onToggleWishlist?.(activeEvent.id)}
               aria-label="Save to Wishlist"
               className={`p-2 rounded-full border transition-colors ${
                 isBookmarked 
@@ -93,7 +109,7 @@ export const EventDetailsView: React.FC<EventDetailsViewProps> = ({
               <Heart className={`w-4 h-4 ${isBookmarked ? 'fill-current' : ''}`} />
             </button>
             <button
-              onClick={() => alert('Event URL copied to clipboard for sharing!')}
+              onClick={() => alert(`Share link for "${activeEvent.title}" copied!`)}
               aria-label="Share Event"
               className="p-2 rounded-full border border-[#e8e5dc] bg-white text-[#62626e] hover:border-[#b8860b] hover:text-[#b8860b] transition-colors"
             >
@@ -105,13 +121,13 @@ export const EventDetailsView: React.FC<EventDetailsViewProps> = ({
         {/* Hero Title & Pitch */}
         <div className="space-y-3 max-w-4xl">
           <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#111116] leading-tight">
-            Thanganat <span className="font-serif italic font-normal text-[#b8860b]">5.0</span>
+            {activeEvent.title}
           </h1>
           <p className="font-serif text-lg sm:text-xl text-[#7b5800] italic font-medium">
-            The Official Campus Navratri & Dandiya Utsav of Swaminarayan University
+            Swaminarayan University • {activeEvent.categoryLabel}
           </p>
           <p className="text-sm sm:text-base text-[#62626e] leading-relaxed max-w-3xl">
-            Immerse yourself in six pulsating hours of traditional rhythm, resonant dhol beats, and luminous heritage under the Kalol night sky. Celebrating communal harmony and youthful brilliance with over 3,500 peers.
+            {activeEvent.summary}
           </p>
         </div>
 
@@ -121,23 +137,23 @@ export const EventDetailsView: React.FC<EventDetailsViewProps> = ({
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#62626e] flex items-center gap-1.5 mb-1">
               <Calendar className="w-3.5 h-3.5 text-[#b8860b]" /> Date & Time
             </span>
-            <div className="font-bold text-xs sm:text-sm text-[#111116]">Wed, 4th Oct</div>
-            <div className="text-[11px] text-[#62626e]">7:00 PM – 12:00 AM</div>
+            <div className="font-bold text-xs sm:text-sm text-[#111116]">{activeEvent.shortDate.month} {activeEvent.shortDate.day}</div>
+            <div className="text-[11px] text-[#62626e]">{activeEvent.time}</div>
           </div>
 
           <div className="bg-white border border-[#e8e5dc] p-3.5 rounded-xl shadow-sm">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#62626e] flex items-center gap-1.5 mb-1">
               <MapPin className="w-3.5 h-3.5 text-[#b8860b]" /> Venue
             </span>
-            <div className="font-bold text-xs sm:text-sm text-[#111116]">New Cricket Ground</div>
-            <div className="text-[11px] text-[#62626e]">Kalol Main Campus</div>
+            <div className="font-bold text-xs sm:text-sm text-[#111116] truncate">{activeEvent.venue}</div>
+            <div className="text-[11px] text-[#62626e]">SU Campus Grounds</div>
           </div>
 
           <div className="bg-white border border-[#e8e5dc] p-3.5 rounded-xl shadow-sm">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#62626e] flex items-center gap-1.5 mb-1">
               <Users className="w-3.5 h-3.5 text-[#b8860b]" /> Turnout
             </span>
-            <div className="font-bold text-xs sm:text-sm text-[#111116] tabular-nums">3,500+ Attendees</div>
+            <div className="font-bold text-xs sm:text-sm text-[#111116] tabular-nums">+{activeEvent.attendees} Attendees</div>
             <div className="text-[11px] text-[#62626e]">Students & Faculty</div>
           </div>
 
@@ -145,15 +161,15 @@ export const EventDetailsView: React.FC<EventDetailsViewProps> = ({
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#62626e] flex items-center gap-1.5 mb-1">
               <Ticket className="w-3.5 h-3.5 text-[#b8860b]" /> Access
             </span>
-            <div className="font-bold text-xs sm:text-sm text-[#15803d]">Free Admission</div>
-            <div className="text-[11px] text-[#62626e]">Valid SU ID Mandatory</div>
+            <div className="font-bold text-xs sm:text-sm text-[#15803d]">Verified Digital Pass</div>
+            <div className="text-[11px] text-[#62626e]">Gate Turnstile QR</div>
           </div>
         </div>
 
         {/* Primary Action Buttons Bar */}
         <div className="flex flex-wrap items-center gap-3 pb-8 border-b border-[#e8e5dc]">
           <button
-            onClick={() => onOpenClaimModal(mockEvent)}
+            onClick={() => onOpenClaimModal(activeEvent)}
             className="bg-gold-gradient text-white px-6 py-3 rounded-xl text-xs sm:text-sm font-bold uppercase tracking-wider shadow-gold-glow hover:opacity-95 transition-all flex items-center gap-2"
           >
             <Ticket className="w-4 h-4" />

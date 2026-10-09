@@ -32,6 +32,17 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    setName(userProfile.name);
+    setAge(userProfile.age);
+    setGender(userProfile.gender);
+    setCourse(userProfile.course);
+    setRollNumber(userProfile.rollNumber);
+    setContactNumber(userProfile.contactNumber);
+    setEmail(userProfile.email);
+    setAvatar(userProfile.avatar);
+  }, [userProfile]);
+
+  useEffect(() => {
     const logs = DatabaseService.getActivityLogs(userProfile.rollNumber);
     setActivityLogs(logs);
 
